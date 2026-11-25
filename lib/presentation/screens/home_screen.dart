@@ -33,9 +33,9 @@ class HomeScreen extends StatelessWidget {
             actions: <Widget>[
               IconButton(
                 tooltip: 'تغيير الصف',
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const GradePickerScreen()),
-                ),
+                onPressed: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute<void>(builder: (_) => const GradePickerScreen())),
                 icon: const Icon(Icons.school_outlined),
               ),
               IconButton(
@@ -98,9 +98,9 @@ class HomeScreen extends StatelessWidget {
                       _ShortcutsRow(state: state),
                       const SizedBox(height: AppSpacing.xl),
                       _FooterNote(library: library),
-              ],
-            ),
-          ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -247,8 +247,14 @@ class _StatsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final units = state.visibleUnits;
-    final totalTopics = units.fold<int>(0, (int sum, LearningUnit unit) => sum + unit.topics.length);
-    final totalQuestions = units.fold<int>(0, (int sum, LearningUnit unit) => sum + unit.questions.length);
+    final totalTopics = units.fold<int>(
+      0,
+      (int sum, LearningUnit unit) => sum + unit.topics.length,
+    );
+    final totalQuestions = units.fold<int>(
+      0,
+      (int sum, LearningUnit unit) => sum + unit.questions.length,
+    );
     // One-word labels: the four tiles always share a single row.
     final items = <_Stat>[
       _Stat('وحدات', toArabicDigits('${units.length}'), Icons.menu_book_outlined),
@@ -258,9 +264,7 @@ class _StatsRow extends StatelessWidget {
     ];
     return EqualColumnsGrid(
       columns: items.length,
-      children: items
-          .map((_Stat item) => _StatTile(stat: item))
-          .toList(growable: false),
+      children: items.map((_Stat item) => _StatTile(stat: item)).toList(growable: false),
     );
   }
 }
@@ -328,12 +332,14 @@ class _SectionsGrid extends StatelessWidget {
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,
-          children: sections.map((ContentSection section) {
-            return SizedBox(
-              width: itemWidth,
-              child: _SectionCard(section: section, state: state),
-            );
-          }).toList(growable: false),
+          children: sections
+              .map((ContentSection section) {
+                return SizedBox(
+                  width: itemWidth,
+                  child: _SectionCard(section: section, state: state),
+                );
+              })
+              .toList(growable: false),
         );
       },
     );
@@ -480,7 +486,11 @@ class _ShortcutsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = <_Shortcut>[
-      _Shortcut('المصطلحات الفنية', Icons.translate_outlined, () => AppRoutes.openGlossary(context)),
+      _Shortcut(
+        'المصطلحات الفنية',
+        Icons.translate_outlined,
+        () => AppRoutes.openGlossary(context),
+      ),
       _Shortcut('المفضلة', Icons.bookmark_border, () => AppRoutes.openFavorites(context)),
       _Shortcut('دروس تطبيقية', Icons.edit_note_outlined, () => AppRoutes.openLessons(context)),
       _Shortcut('موضوعات مصوّرة', Icons.brush_outlined, () => AppRoutes.openDrawings(context)),
@@ -490,11 +500,13 @@ class _ShortcutsRow extends StatelessWidget {
       spacing: AppSpacing.md,
       runSpacing: AppSpacing.md,
       children: items
-          .map((_Shortcut item) => OutlinedButton.icon(
-                onPressed: item.onTap,
-                icon: Icon(item.icon, size: 18),
-                label: Text(item.label),
-              ))
+          .map(
+            (_Shortcut item) => OutlinedButton.icon(
+              onPressed: item.onTap,
+              icon: Icon(item.icon, size: 18),
+              label: Text(item.label),
+            ),
+          )
           .toList(growable: false),
     );
   }
@@ -580,7 +592,11 @@ class _ToolActions extends StatelessWidget {
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[cards[0], const SizedBox(height: AppSpacing.sm), cards[1]],
+          children: <Widget>[
+            cards[0],
+            const SizedBox(height: AppSpacing.sm),
+            cards[1],
+          ],
         );
       },
     );

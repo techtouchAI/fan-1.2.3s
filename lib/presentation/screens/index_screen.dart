@@ -92,9 +92,9 @@ class _IndexScreenState extends State<IndexScreen> {
                           query: _query,
                         ),
                       ),
-              ],
-            ),
-          ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -105,11 +105,7 @@ class _IndexScreenState extends State<IndexScreen> {
 }
 
 class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
+  const _FilterChip({required this.label, required this.selected, required this.onSelected});
 
   final String label;
   final bool selected;
@@ -117,11 +113,7 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onSelected(),
-    );
+    return ChoiceChip(label: Text(label), selected: selected, onSelected: (_) => onSelected());
   }
 }
 
@@ -146,13 +138,15 @@ class _SectionBlock extends StatelessWidget {
         subtitle: section.subtitle,
         icon: Icons.edit_note_outlined,
         entries: state.library.lessons
-            .map((LessonPlan lesson) => _ExtraEntry(
-                  title: lesson.title,
-                  subtitle: lesson.summary,
-                  onTap: () => AppRoutes.openLesson(context, lesson),
-                  isFavorite: state.isFavorite(lesson.id),
-                  onFavorite: () => state.toggleFavorite(lesson.id),
-                ))
+            .map(
+              (LessonPlan lesson) => _ExtraEntry(
+                title: lesson.title,
+                subtitle: lesson.summary,
+                onTap: () => AppRoutes.openLesson(context, lesson),
+                isFavorite: state.isFavorite(lesson.id),
+                onFavorite: () => state.toggleFavorite(lesson.id),
+              ),
+            )
             .toList(growable: false),
         matchesQuery: query,
         filter: filter,
@@ -195,11 +189,13 @@ class _SectionBlock extends StatelessWidget {
         subtitle: '${toArabicDigits('${state.visibleDrawings.length}')} موضوعاً مصوّراً',
         icon: Icons.brush_outlined,
         entries: state.visibleDrawings
-            .map((TopicDrawing drawing) => _ExtraEntry(
-                  title: drawing.title,
-                  subtitle: drawing.caption,
-                  onTap: () => AppRoutes.openDrawing(context, drawing),
-                ))
+            .map(
+              (TopicDrawing drawing) => _ExtraEntry(
+                title: drawing.title,
+                subtitle: drawing.caption,
+                onTap: () => AppRoutes.openDrawing(context, drawing),
+              ),
+            )
             .toList(growable: false),
         matchesQuery: query,
         filter: filter,
@@ -211,30 +207,35 @@ class _SectionBlock extends StatelessWidget {
         subtitle: section.subtitle,
         icon: Icons.image_outlined,
         entries: state.visiblePlates
-            .map((Plate plate) => _ExtraEntry(
-                  title: plate.title,
-                  subtitle: plate.caption,
-                  onTap: () => AppRoutes.openPlate(context, plate),
-                ))
+            .map(
+              (Plate plate) => _ExtraEntry(
+                title: plate.title,
+                subtitle: plate.caption,
+                onTap: () => AppRoutes.openPlate(context, plate),
+              ),
+            )
             .toList(growable: false),
         matchesQuery: query,
         filter: filter,
       );
     }
 
-    final units = state.library.unitsOf(section.id).where((LearningUnit unit) {
-      if (filter == _IndexFilter.unread && state.isRead(unit.id)) {
-        return false;
-      }
-      if (filter == _IndexFilter.favorites && !state.isFavorite(unit.id)) {
-        return false;
-      }
-      if (query.trim().isNotEmpty) {
-        final needle = normalizeArabic(query.trim());
-        return normalizeArabic('${unit.title} ${unit.searchableText}').contains(needle);
-      }
-      return true;
-    }).toList(growable: false);
+    final units = state.library
+        .unitsOf(section.id)
+        .where((LearningUnit unit) {
+          if (filter == _IndexFilter.unread && state.isRead(unit.id)) {
+            return false;
+          }
+          if (filter == _IndexFilter.favorites && !state.isFavorite(unit.id)) {
+            return false;
+          }
+          if (query.trim().isNotEmpty) {
+            final needle = normalizeArabic(query.trim());
+            return normalizeArabic('${unit.title} ${unit.searchableText}').contains(needle);
+          }
+          return true;
+        })
+        .toList(growable: false);
 
     if (units.isEmpty) {
       return Padding(
@@ -321,8 +322,8 @@ class _UnitTile extends StatelessWidget {
                         unit.isIntroduction
                             ? 'م'
                             : unit.isTheatre
-                                ? 'م.م'
-                                : toArabicDigits('${unit.order}'),
+                            ? 'م.م'
+                            : toArabicDigits('${unit.order}'),
                         style: theme.textTheme.titleLarge?.copyWith(color: accent),
                       ),
               ),
@@ -419,29 +420,27 @@ class _ExtraSection extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final needle = normalizeArabic(matchesQuery.trim());
-    final visible = entries.where((_ExtraEntry entry) {
-      if (filter == _IndexFilter.unread) {
-        return false;
-      }
-      if (filter == _IndexFilter.favorites && !entry.isFavorite) {
-        return false;
-      }
-      if (needle.isEmpty) {
-        return true;
-      }
-      return normalizeArabic('${entry.title} ${entry.subtitle}').contains(needle);
-    }).toList(growable: false);
+    final visible = entries
+        .where((_ExtraEntry entry) {
+          if (filter == _IndexFilter.unread) {
+            return false;
+          }
+          if (filter == _IndexFilter.favorites && !entry.isFavorite) {
+            return false;
+          }
+          if (needle.isEmpty) {
+            return true;
+          }
+          return normalizeArabic('${entry.title} ${entry.subtitle}').contains(needle);
+        })
+        .toList(growable: false);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          SectionHeader(
-            title: title,
-            subtitle: subtitle,
-            accent: scheme.tertiary,
-          ),
+          SectionHeader(title: title, subtitle: subtitle, accent: scheme.tertiary),
           if (visible.isEmpty)
             Text(
               filter == _IndexFilter.unread

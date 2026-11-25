@@ -17,10 +17,7 @@ class QuizPickerScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final units = state.visibleUnits.where((unit) => unit.questions.isNotEmpty);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('اختبر فهمك'),
-        actions: const <Widget>[TextScaleControls()],
-      ),
+      appBar: AppBar(title: const Text('اختبر فهمك'), actions: const <Widget>[TextScaleControls()]),
       body: ListView(
         padding: const EdgeInsets.only(bottom: AppSpacing.xxl),
         children: <Widget>[

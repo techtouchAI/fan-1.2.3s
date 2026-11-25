@@ -43,9 +43,27 @@ abstract final class AppTheme {
     final muted = scheme.onSurfaceVariant;
 
     final textTheme = TextTheme(
-      displayLarge: TextStyle(fontFamily: literaryFont, fontSize: 40, fontWeight: FontWeight.w700, height: 1.35, color: onSurface),
-      displayMedium: TextStyle(fontFamily: literaryFont, fontSize: 34, fontWeight: FontWeight.w700, height: 1.35, color: onSurface),
-      headlineLarge: TextStyle(fontFamily: literaryFont, fontSize: 28, fontWeight: FontWeight.w700, height: 1.35, color: onSurface),
+      displayLarge: TextStyle(
+        fontFamily: literaryFont,
+        fontSize: 40,
+        fontWeight: FontWeight.w700,
+        height: 1.35,
+        color: onSurface,
+      ),
+      displayMedium: TextStyle(
+        fontFamily: literaryFont,
+        fontSize: 34,
+        fontWeight: FontWeight.w700,
+        height: 1.35,
+        color: onSurface,
+      ),
+      headlineLarge: TextStyle(
+        fontFamily: literaryFont,
+        fontSize: 28,
+        fontWeight: FontWeight.w700,
+        height: 1.35,
+        color: onSurface,
+      ),
       displaySmall: TextStyle(
         fontFamily: literaryFont,
         fontSize: 30,
@@ -166,14 +184,9 @@ abstract final class AppTheme {
         ),
       ),
       chipTheme: ChipThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.sm),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.sm)),
       ),
-      dividerTheme: DividerThemeData(
-        color: scheme.outlineVariant,
-        thickness: 1,
-      ),
+      dividerTheme: DividerThemeData(color: scheme.outlineVariant, thickness: 1),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.md)),

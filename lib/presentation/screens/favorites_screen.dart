@@ -35,10 +35,7 @@ class FavoritesScreen extends StatelessWidget {
             ),
           ),
         if (units.isNotEmpty) ...<Widget>[
-          SectionHeader(
-            title: 'الوحدات المحفوظة',
-            subtitle: '${units.length} وحدة',
-          ),
+          SectionHeader(title: 'الوحدات المحفوظة', subtitle: '${units.length} وحدة'),
           ...units.map(
             (LearningUnit unit) => Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -102,9 +99,7 @@ class FavoritesScreen extends StatelessWidget {
                       children: <Widget>[
                         Icon(Icons.edit_note_outlined, color: theme.colorScheme.tertiary),
                         const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Text(lesson.title, style: theme.textTheme.titleMedium),
-                        ),
+                        Expanded(child: Text(lesson.title, style: theme.textTheme.titleMedium)),
                         IconButton(
                           tooltip: 'إزالة',
                           onPressed: () => state.toggleFavorite(lesson.id),
@@ -123,10 +118,7 @@ class FavoritesScreen extends StatelessWidget {
 
     if (!embedded) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('المفضلة'),
-          actions: const <Widget>[TextScaleControls()],
-        ),
+        appBar: AppBar(title: const Text('المفضلة'), actions: const <Widget>[TextScaleControls()]),
         body: ListView(
           padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
           children: <Widget>[AppPage(child: body)],
@@ -141,9 +133,7 @@ class FavoritesScreen extends StatelessWidget {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
-              children: <Widget>[
-                AppPage(child: body),
-              ],
+              children: <Widget>[AppPage(child: body)],
             ),
           ),
         ],

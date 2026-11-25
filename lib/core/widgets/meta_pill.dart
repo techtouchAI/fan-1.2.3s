@@ -35,9 +35,11 @@ class MetaPill extends StatelessWidget {
             Icon(icon, size: 14, color: tone),
             const SizedBox(width: 5),
           ],
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: tone),
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(color: tone),
+            ),
           ),
         ],
       ),

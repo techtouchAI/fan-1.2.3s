@@ -23,10 +23,13 @@ class _LandingShellState extends State<LandingShell> {
   int _index = 0;
   final Set<int> _visited = <int>{0};
 
-  void _select(int value) => setState(() {
-    _index = value;
-    _visited.add(value);
-  });
+  void _select(int value) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _index = value;
+      _visited.add(value);
+    });
+  }
 
   static const List<_Destination> _destinations = <_Destination>[
     _Destination('الرئيسية', Icons.home_outlined, Icons.home),
@@ -83,11 +86,13 @@ class _LandingShellState extends State<LandingShell> {
                 ),
               ),
               destinations: _destinations
-                  .map((_Destination item) => NavigationRailDestination(
-                        icon: Icon(item.icon),
-                        selectedIcon: Icon(item.selectedIcon),
-                        label: Text(item.label),
-                      ))
+                  .map(
+                    (_Destination item) => NavigationRailDestination(
+                      icon: Icon(item.icon),
+                      selectedIcon: Icon(item.selectedIcon),
+                      label: Text(item.label),
+                    ),
+                  )
                   .toList(growable: false),
             ),
             const VerticalDivider(width: 1),
@@ -103,11 +108,13 @@ class _LandingShellState extends State<LandingShell> {
         selectedIndex: _index,
         onDestinationSelected: _select,
         destinations: _destinations
-            .map((_Destination item) => NavigationDestination(
-                  icon: Icon(item.icon),
-                  selectedIcon: Icon(item.selectedIcon),
-                  label: item.label,
-                ))
+            .map(
+              (_Destination item) => NavigationDestination(
+                icon: Icon(item.icon),
+                selectedIcon: Icon(item.selectedIcon),
+                label: item.label,
+              ),
+            )
             .toList(growable: false),
       ),
     );
@@ -116,9 +123,8 @@ class _LandingShellState extends State<LandingShell> {
 
 Widget _settingsButton(BuildContext context) => IconButton(
   tooltip: 'الإعدادات',
-  onPressed: () => Navigator.of(context).push(
-    MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
-  ),
+  onPressed: () =>
+      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen())),
   icon: const Icon(Icons.settings_outlined),
 );
 

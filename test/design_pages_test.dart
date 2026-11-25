@@ -54,8 +54,12 @@ void main() {
         testWidgets('${entry.key}: ${size.width}px, dark=$dark, zoom=120%', (tester) async {
           tester.platformDispatcher.textScaleFactorTestValue = 1.2;
           addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-          await pumpScreen(tester, entry.value, size: size,
-            theme: dark ? AppTheme.dark() : AppTheme.light());
+          await pumpScreen(
+            tester,
+            entry.value,
+            size: size,
+            theme: dark ? AppTheme.dark() : AppTheme.light(),
+          );
           await tester.pumpAndSettle();
           final error = tester.takeException();
           final overflows = findFlexOverflows(tester);

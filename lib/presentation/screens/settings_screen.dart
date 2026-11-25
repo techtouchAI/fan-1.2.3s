@@ -340,7 +340,7 @@ class _SettingsCard extends StatelessWidget {
             children: <Widget>[
               Icon(icon, size: 20, color: scheme.primary),
               const SizedBox(width: AppSpacing.sm),
-              Text(title, style: theme.textTheme.titleLarge),
+              Expanded(child: Text(title, style: theme.textTheme.titleLarge)),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
