@@ -13,10 +13,10 @@ class ExamPreviewController extends ChangeNotifier {
   final transformation = TransformationController();
   int _page = 0;
   double get zoom => transformation.value.getMaxScaleOnAxis();
-  int visiblePage(int pageCount) => _page.clamp(0, math.max(0, pageCount - 1));
+  int visiblePage(int pageCount) => _page.clamp(0, math.max(0, pageCount - 1)).toInt();
 
   void goToPage(int page, {required int pageCount}) {
-    final next = page.clamp(0, math.max(0, pageCount - 1));
+    final next = page.clamp(0, math.max(0, pageCount - 1)).toInt();
     if (_page == next) return;
     _page = next;
     notifyListeners();
