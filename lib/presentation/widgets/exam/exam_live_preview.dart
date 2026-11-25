@@ -52,7 +52,7 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
   List<List<String>> _paginate() {
     final pages = <List<String>>[];
     var page = <String>[];
-    var height = ExamPreviewHeader.height;
+    var height = ExamPreviewHeader.heightFor(widget.paper);
     const available = pageHeight - margin * 2 - 32;
     double measure(String text) {
       final painter = TextPainter(
@@ -64,7 +64,7 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
       return h;
     }
 
-    for (final line in examPaperAsPlainText(widget.paper).split('\n').skip(9)) {
+    for (final line in examPaperBodyAsPlainText(widget.paper).split('\n')) {
       var remaining = line;
       while (true) {
         final h = measure(remaining);
@@ -73,31 +73,33 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
           height += h;
           break;
         }
-        if (page.isNotEmpty) {
+        if (page.isNotEmpty || (pages.isEmpty && height > 0)) {
+          // The header may fill the first sheet even before any body text.
           pages.add(page);
           page = <String>[];
           height = 0;
           continue;
         }
-        final words = remaining.split(' ');
+        // A paragraph taller than a sheet must be split, including a long
+        // unbroken word. Work in Unicode scalars to avoid splitting a surrogate.
+        final characters = remaining.runes.toList();
         var low = 1;
-        var high = words.length;
+        var high = characters.length;
         while (low < high) {
           final mid = (low + high + 1) ~/ 2;
-          if (measure(words.take(mid).join(' ')) <= available) {
+          if (measure(String.fromCharCodes(characters.take(mid))) <= available) {
             low = mid;
           } else {
             high = mid - 1;
           }
         }
-        // Even a pathological unbroken word is allowed to wrap by TextPainter.
-        if (low == words.length) {
-          page.add(remaining);
-          height += h;
-          break;
-        }
-        pages.add(<String>[words.take(low).join(' ')]);
-        remaining = words.skip(low).join(' ');
+        final candidate = String.fromCharCodes(characters.take(low));
+        final wordBoundary = candidate.lastIndexOf(' ');
+        final prefix = wordBoundary > 0 ? candidate.substring(0, wordBoundary) : candidate;
+        pages.add(<String>[prefix]);
+        remaining = remaining.substring(prefix.length).trimLeft();
+        height = 0;
+        if (remaining.isEmpty) break;
       }
     }
     if (page.isNotEmpty) pages.add(page);
@@ -264,18 +266,66 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
 /// is intentionally not the Arabic subject's composition/grammar grade split.
 class ExamPreviewHeader extends StatelessWidget {
   const ExamPreviewHeader({super.key, required this.paper});
-  static const double height = 370;
+  static const double _tableWidth = 500;
+  static TextStyle _styleFor(ExamPaper paper) => TextStyle(
+    fontFamily: 'Amiri',
+    color: Colors.black,
+    fontSize: paper.typography.headerFontSize * 4 / 3,
+    height: 1.3,
+    fontWeight: FontWeight.bold,
+  );
+
+  static double _textHeight(String text, double width, ExamPaper paper) {
+    final painter = TextPainter(
+      text: TextSpan(text: text.isEmpty ? ' ' : text, style: _styleFor(paper)),
+      textDirection: TextDirection.rtl,
+    )..layout(maxWidth: width);
+    final height = painter.height;
+    painter.dispose();
+    return height;
+  }
+
+  static List<String> _headerTexts(ExamPaper paper) => <String>[
+    'ادارة\n${paper.info.school}',
+    '${paper.info.examTitleLine}\n${paper.info.yearLine}\nالتربية الفنية',
+    'الاسم :\n${paper.info.classLine}\nالرقم الامتحاني :',
+  ];
+
+  static double _rowHeight(ExamPaper paper) {
+    final texts = _headerTexts(paper);
+    const weights = <int>[2693, 5245, 2977];
+    return List<double>.generate(
+      3,
+      (i) => _textHeight(texts[i], 698 * weights[i] / 10915 - 6, paper) + 6,
+    ).reduce((a, b) => a > b ? a : b);
+  }
+
+  /// Measure using the same constraints and fonts as the rendered header.
+  /// Long labels and the maximum supported size cannot overflow a fixed box.
+  static double heightFor(ExamPaper paper) {
+    double cellHeight(String text) => _textHeight(text, _tableWidth / 5 - 7.4, paper) + 7.4;
+    final labels = <String>[
+      'رقم السؤال',
+      'الدرجة رقما',
+      'الدرجة كتابة',
+      'اسم المصحح',
+      'اسم المدقق',
+    ];
+    final heading = labels.map(cellHeight).reduce((a, b) => a > b ? a : b);
+    return _rowHeight(paper) +
+        heading +
+        cellHeight('س1') * 6 +
+        cellHeight('المجموع') +
+        _textHeight('العملـــــي', _tableWidth - 7.4, paper) +
+        7.4 +
+        10;
+  }
+
   final ExamPaper paper;
   @override
   Widget build(BuildContext context) {
     final info = paper.info;
-    const headerStyle = TextStyle(
-      fontFamily: 'Amiri',
-      color: Colors.black,
-      fontSize: 16,
-      height: 1.3,
-      fontWeight: FontWeight.bold,
-    );
+    final headerStyle = _styleFor(paper);
     Widget cell(String text) => Padding(
       padding: const EdgeInsets.all(3),
       child: Text(text, style: headerStyle, textAlign: TextAlign.center),
@@ -283,12 +333,12 @@ class ExamPreviewHeader extends StatelessWidget {
     TableRow scoreRow(String text) =>
         TableRow(children: <Widget>[cell(text), cell(''), cell(''), cell(''), cell('')]);
     return SizedBox(
-      height: height,
+      height: heightFor(paper),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           SizedBox(
-            height: 96,
+            height: _rowHeight(paper),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -303,7 +353,7 @@ class ExamPreviewHeader extends StatelessWidget {
           ),
           Center(
             child: SizedBox(
-              width: 500,
+              width: _tableWidth,
               child: Column(
                 children: <Widget>[
                   Table(

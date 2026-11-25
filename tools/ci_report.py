@@ -101,8 +101,12 @@ def report_test(path: Path, status: int = 0) -> int:
                 current = test_id
                 names[test_id] = str(test.get("name", "unnamed test"))
                 messages[test_id] = []
-        elif kind == "print" and current is not None:
-            messages.setdefault(current, []).append(str(event.get("message", "")))
+        elif kind == "print":
+            # Test files execute concurrently: the most recently started test
+            # need not own this print event. The reporter supplies its testID.
+            owner = event.get("testID", current)
+            if isinstance(owner, int):
+                messages.setdefault(owner, []).append(str(event.get("message", "")))
         elif kind == "testDone":
             total += 1
             if event.get("result") in {"failure", "error"} and not event.get("hidden"):

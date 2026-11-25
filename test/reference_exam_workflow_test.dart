@@ -13,6 +13,7 @@ import 'package:mirsam/domain/models/saved_exam.dart';
 import 'package:mirsam/domain/models/progress.dart';
 import 'package:mirsam/domain/models/question_print_settings.dart';
 import 'package:mirsam/domain/services/question_print_plan.dart';
+import 'package:mirsam/domain/services/exam_paper_formatter.dart';
 import 'package:mirsam/presentation/screens/exam_composer_screen.dart';
 import 'package:mirsam/presentation/screens/quiz_picker_screen.dart';
 import 'package:mirsam/presentation/screens/saved_exams_screen.dart';
@@ -238,6 +239,47 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(findFlexOverflows(tester), isEmpty);
     expect(find.text('ادارة\n${state.schoolName}'), findsOneWidget);
+    state.dispose();
+  });
+
+  testWidgets('long A4 paragraphs paginate without losing words or overflowing', (tester) async {
+    final state = draft();
+    final option = state.options.first;
+    state.toggleItem(option.question.kind, option.id);
+    state.editItem(
+      ExamTheoryItem(
+        id: option.id,
+        kind: option.question.kind,
+        prompt: List<String>.filled(500, 'كلمةاختبار').join(' '),
+      ),
+    );
+    final paper = state.buildPaperWith(
+      const ExamPaperTypography(bodyFontSize: 32, lineSpacingPercent: 200),
+    );
+    expect(examPaperAsPlainText(paper), endsWith(examPaperBodyAsPlainText(paper)));
+    await pumpScreen(
+      tester,
+      Scaffold(body: ExamLivePreview(paper: paper)),
+      size: const Size(360, 800),
+    );
+    await tester.pumpAndSettle();
+    var words = 0;
+    var pageCount = 0;
+    while (true) {
+      expect(tester.takeException(), isNull);
+      expect(findFlexOverflows(tester), isEmpty);
+      words += tester
+          .widgetList<Text>(find.byType(Text))
+          .fold<int>(0, (sum, text) => sum + 'كلمةاختبار'.allMatches(text.data ?? '').length);
+      pageCount++;
+      expect(pageCount, lessThan(50));
+      final next = find.byTooltip('الصفحة التالية');
+      if (next.evaluate().isEmpty || tester.widget<IconButton>(next).onPressed == null) break;
+      await tester.tap(next);
+      await tester.pumpAndSettle();
+    }
+    expect(words, 500);
+    expect(pageCount, greaterThan(1));
     state.dispose();
   });
 

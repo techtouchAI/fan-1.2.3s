@@ -52,6 +52,11 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
                 const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'تعريفات مختصرة للمصطلحات الفنية، مع رابط إلى الوحدة التي ورد فيها كل مصطلح.',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 TextField(
                   decoration: const InputDecoration(
                     hintText: 'ابحث في مفردات المعجم (بدون تشكيل)...',
@@ -91,7 +96,16 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
                       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
                       child: ListTile(
                         title: Text(term.term, style: theme.textTheme.titleMedium),
-                        subtitle: Text(term.definition, style: theme.textTheme.bodyMedium),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(term.definition, style: theme.textTheme.bodyMedium),
+                            Text(
+                              state.library.unitById(term.unitId)?.displayTitle ?? '',
+                              style: theme.textTheme.labelSmall,
+                            ),
+                          ],
+                        ),
                         trailing: const Icon(Icons.open_in_new, size: 18),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(builder: (_) => UnitScreen(unitId: term.unitId)),
