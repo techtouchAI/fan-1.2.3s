@@ -79,6 +79,15 @@ void main() {
     state.dispose();
   });
 
+  test('regeneration clears practical topics outside the new scope', () {
+    final state = draft();
+    state.generateBalancedExam(random: Random(1));
+    expect(state.practical.any((item) => item.drawingId != null), isTrue);
+    state.generateBalancedExam(unitIds: <String>{});
+    expect(state.practical.every((item) => item.drawingId == null && item.prompt.isEmpty), isTrue);
+    state.dispose();
+  });
+
   test('bank add/replace selection never imports foreign identifiers', () {
     final state = draft();
     final kind = state.options.first.question.kind;

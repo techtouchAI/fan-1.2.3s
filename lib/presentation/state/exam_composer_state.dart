@@ -470,6 +470,9 @@ class ExamComposerState extends ChangeNotifier {
           drawingId: pool[i].id,
           drawingTitle: pool[i].title,
         );
+      } else {
+        // Regeneration must not retain topics from a previously selected unit.
+        practical[i] = ExamPracticalQuestion(prompt: '', degree: practical[i].degree);
       }
     }
     notifyListeners();

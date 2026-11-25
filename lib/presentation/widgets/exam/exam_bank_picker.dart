@@ -3,7 +3,6 @@ import '../../../core/theme/dimens.dart';
 import '../../../core/utils/arabic_text.dart';
 import '../../../domain/models/exam_paper.dart';
 import '../../../domain/models/library.dart';
-import '../../../domain/services/exam_paper_formatter.dart';
 import '../../state/exam_composer_state.dart';
 
 /// Searchable, scoped, multi-select bank. Local selection is committed only on
