@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -30,6 +31,9 @@ typedef ExamDocumentExport = Future<ExamExportResult> Function(Uint8List bytes, 
 /// Mobile documents use the native share sheet; desktop exports use Save As.
 /// Android 10+ images go to Pictures/Mirsam without storage permissions.
 abstract final class ExamDocumentExporter {
+  static bool get _isAndroid => defaultTargetPlatform == TargetPlatform.android;
+  static bool get _isMobile => _isAndroid || defaultTargetPlatform == TargetPlatform.iOS;
+
   static const mediaStoreChannel = MethodChannel('com.techtouchai.mirsam/media_store');
 
   static Future<ExamExportResult> _saveAs(Uint8List bytes, String name, String extension) async {
@@ -56,7 +60,7 @@ abstract final class ExamDocumentExporter {
     final name = fileName.trim().isEmpty ? 'mirsam-exam.docx' : sanitizeExamFileName(fileName);
     final safeName = name.toLowerCase().endsWith('.docx') ? name : '$name.docx';
 
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (_isMobile) {
       final directory = await getTemporaryDirectory();
       final file = File('${directory.path}${Platform.pathSeparator}$safeName');
       await file.writeAsBytes(bytes, flush: true);
@@ -76,9 +80,9 @@ abstract final class ExamDocumentExporter {
   /// Save/share the current A4 preview page without mislabelling it as DOCX.
   static Future<ExamExportResult> exportImage(Uint8List bytes, String fileName) async {
     final name = sanitizeExamFileName(fileName);
-    final safeName = name.endsWith('.png') ? name : '$name.png';
-    if (!Platform.isAndroid && !Platform.isIOS) return _saveAs(bytes, safeName, 'png');
-    if (Platform.isAndroid) {
+    final safeName = name.toLowerCase().endsWith('.png') ? name : '$name.png';
+    if (!_isMobile) return _saveAs(bytes, safeName, 'png');
+    if (_isAndroid) {
       try {
         final path = await mediaStoreChannel.invokeMethod<String>(
           'saveImageToGallery',

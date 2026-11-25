@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mirsam/data/local/memory_exam_profile_repository.dart';
 import 'package:mirsam/data/local/memory_exam_question_bank_repository.dart';
 import 'package:mirsam/data/local/saved_exam_store.dart';
@@ -31,6 +32,7 @@ void main() {
     drawings: library.drawings,
     gradeLabel: 'الأول المتوسط',
   );
+  setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
   setUpAll(() async {
     library = await ensureLibrary();
   });
@@ -273,7 +275,9 @@ void main() {
           .fold<int>(0, (sum, text) => sum + 'كلمةاختبار'.allMatches(text.data ?? '').length);
       pageCount++;
       expect(pageCount, lessThan(50));
-      final next = find.byTooltip('الصفحة التالية');
+      final next = find.byWidgetPredicate(
+        (widget) => widget is IconButton && widget.tooltip == 'الصفحة التالية',
+      );
       if (next.evaluate().isEmpty || tester.widget<IconButton>(next).onPressed == null) break;
       await tester.tap(next);
       await tester.pumpAndSettle();

@@ -38,6 +38,7 @@ jobs:
         run: |
           python3 tools/verify_design_content.py
           python3 tools/test_verify_design_content.py
+          python3 tools/test_ci_report.py
       - name: Validate the JSON payloads
         run: |
           python3 - <<'PY'
