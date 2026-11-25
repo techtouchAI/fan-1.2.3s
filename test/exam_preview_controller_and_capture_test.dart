@@ -27,6 +27,11 @@ Future<ui.Image> renderTestPage(int width, int height) async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  // pumpScreen uses the file-backed curriculum fixture. Load it in the real
+  // asynchronous zone, before widget tests enter FakeAsync (see test_support).
+  setUpAll(() async {
+    await ensureLibrary();
+  });
   // Native raster/codec futures must report a stage-specific failure rather
   // than leave the entire regression job waiting indefinitely.
   const nativeTimeout = Duration(seconds: 30);
