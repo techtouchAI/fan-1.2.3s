@@ -293,6 +293,10 @@ void main() {
           );
           final isolatedYeh = 'ﻱ'.runes.single;
           expect(item.glyphMetrics(isolatedYeh).advanceWidth, greaterThan(0));
+          // These are different letters. The pinned parser previously mapped
+          // yeh to isolated alef maksura when the font omitted aliases.
+          expect(item.font.charToGlyphIndexMap[0xfef1], item.font.charToGlyphIndexMap[0x064a]);
+          expect(item.font.charToGlyphIndexMap[0xfeef], item.font.charToGlyphIndexMap[0x0649]);
         }
       }
     });
