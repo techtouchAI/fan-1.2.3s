@@ -265,6 +265,11 @@ void main() {
       size: const Size(360, 800),
     );
     await tester.pumpAndSettle();
+    final indicator = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((text) => text.data ?? '')
+        .firstWhere((text) => RegExp(r'^\d+ / \d+$').hasMatch(text));
+    final declaredPageCount = int.parse(indicator.split('/').last.trim());
     var words = 0;
     var pageCount = 0;
     while (true) {
@@ -274,7 +279,7 @@ void main() {
           .widgetList<Text>(find.byType(Text))
           .fold<int>(0, (sum, text) => sum + 'كلمةاختبار'.allMatches(text.data ?? '').length);
       pageCount++;
-      expect(pageCount, lessThan(50));
+      expect(pageCount, lessThanOrEqualTo(declaredPageCount));
       final next = find.byWidgetPredicate(
         (widget) => widget is IconButton && widget.tooltip == 'الصفحة التالية',
       );
@@ -283,6 +288,7 @@ void main() {
       await tester.pumpAndSettle();
     }
     expect(words, 500);
+    expect(pageCount, declaredPageCount);
     expect(pageCount, greaterThan(1));
     state.dispose();
   });

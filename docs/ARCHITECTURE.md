@@ -28,7 +28,7 @@ lib/
     ├── state/app_state.dart   ChangeNotifier واحد + AppScope (InheritedNotifier)
     ├── state/bootstrap.dart   تحميل المحتوى، شاشة بداية، شاشة خطأ
     ├── navigation/app_routes.dart
-    ├── screens/               18 شاشة + الهيكل العام (منها اختيار الصف والموضوعات المصوّرة)
+    ├── screens/               شاشات المحتوى والأدوات + الهيكل العام (منها اختيار الصف والموضوعات المصوّرة)
     └── widgets/               IllustrationFigure, TopicCard, TopicDrawings,
                                AssetViewer, GalleryTiles, unit_sections
 ```
@@ -36,7 +36,7 @@ lib/
 ## تدفّق الإقلاع
 
 1. `main()` يثبّت الاتجاه العام ويشغّل `MirsamBootstrap`.
-2. `MirsamBootstrap` يحمّل بالتوازي: `AssetContentRepository.load()` و`PrefsProgressRepository.load()`.
+2. `MirsamBootstrap` يحمّل بالتوازي المحتوى والتقدم ومخزن الأوراق المحفوظة وملف المدرس المحلي.
 3. عند النجاح: `AppState(library, progress, repository)` ثم `AppScope` ثم `MirsamApp`.
    إن لم يكن `progress.gradeId` محفوظاً (أول تشغيل) يفتح `MirsamApp` شاشة `GradePickerScreen`،
    وبعد اختيار الصف تُستبدل بـ `LandingShell`.
@@ -175,3 +175,17 @@ lib/
   يستخدم خدمة النظام وقد يعتمد اتصال الطابعة نفسها على إعدادات الجهاز.
 - لا قاعدة بيانات: حجم المحتوى ثابت ومعروف (‎< 1MB JSON)، والقراءة من الأصول أسرع وأبسط.
 - لا `provider`/`riverpod`: `InheritedNotifier` يكفي ويقلّل التبعيات.
+
+
+## محرر الأسئلة والأوراق المحفوظة
+
+- `ExamComposerState` يحوّل أسئلة الفن إلى اختيارات ذات معرف مركب `unitId:questionId`. تبقى أصول المنهج للقراءة فقط؛ `editItem` يخزن override خاصًا بالمسودة.
+- `toDraft/restoreDraft` تشمل كل المدخلات، حتى الناقصة، والتنسيق والاختيارات والتعليمات والدرجات والرسوم والتعديلات. يظل `paper` فارغًا إلى أن يكتمل التحقق؛ المعاينة المباشرة تستخدم `buildPaperWith` دون اشتراط جاهزية التصدير.
+- `SavedExamPaper` لقطة JSON عميقة النسخ. يدير `SavedExamLibrary` التسمية والنسخ والحذف والحفظ، ويجمع الكتابات المتعاقبة في أحدث حالة. تخزين الإنتاج تحت `mirsam.saved-exams.v1`؛ يوجد بديل ذاكرة للاختبارات. المكتبة مستقلة عن التقدم وتُتلف مع `AppState`.
+- يحفظ المحرر عند كل تعديل دلالي. تعيد شاشة الأوراق الفتح باستخدام صف الورقة المحفوظ لا الصف المتغير لاحقًا. تعرض الشاشة أوراق الصف الحالي فقط.
+- عرض المحرر الافتراضي متصل؛ يمكن فتح الأقسام القديمة صراحة باستخدام `initialSection`، مع استمرار حقن مستودعي الملف والبنك ودالة التصدير في الاختبارات.
+- `ExamLivePreview` يستخدم نسبة A4 وترويسة الفن المنظمة، ويقيس النص لترحيله إلى صفحات دون قص الفقرات الطويلة. تشترك صياغة المتن مع Word عبر `exam_paper_formatter.dart`، لا عبر حذف عدد ثابت من أسطر الترويسة.
+- يستخدم تصدير سطح المكتب `file_selector` لحوار Save As. تستخدم صور Android قناة `com.techtouchai.mirsam/media_store` إلى `MainActivity`، التي تكتب MediaStore مع IS_PENDING؛ يرجع Dart للمشاركة عند تعذرها. لا أذونات تخزين جديدة.
+- جولات الاختبار لها `QuizResult` ضمن `ReadingProgress.quizHistory` (بحد 100 سجل محمّل/محفوظ)، منفصل عن أفضل نتائج مراجعة الوحدة في `quizScores`، مع الاحتفاظ بالتوافق مع تقدم الإصدارات القديمة.
+
+راجع `DESIGN_MIGRATION.md` لمصفوفة نقل تجربة Arabic-1s وحدود التحقق الفعلي.
