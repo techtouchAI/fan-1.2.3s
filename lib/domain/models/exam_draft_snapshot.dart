@@ -145,7 +145,8 @@ class ExamDraftSnapshot {
       final unresolved = (value['unresolvedSourceIds'] as List? ?? const []).toSet();
       for (final entry in selection.entries) {
         for (final id in entry.value as List) {
-          if (frozen[id] != entry.key && !unresolved.contains(id)) {
+          if ((frozen.containsKey(id) && frozen[id] != entry.key) ||
+              (!frozen.containsKey(id) && !unresolved.contains(id))) {
             throw const FormatException('A selected item has no frozen content');
           }
         }

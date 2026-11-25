@@ -322,8 +322,9 @@ class ExamComposerState extends ChangeNotifier {
     return <String>{
       for (final entry in _selected.entries)
         for (final id in entry.value)
-          if (_frozenItems[id]?.kind != entry.key &&
-              !options.any((o) => o.id == id && o.question.kind == entry.key))
+          if (_frozenItems.containsKey(id)
+              ? _frozenItems[id]!.kind != entry.key
+              : !options.any((o) => o.id == id && o.question.kind == entry.key))
             id,
     };
   }
@@ -470,7 +471,12 @@ class ExamComposerState extends ChangeNotifier {
     if (!options.any((option) => option.id == item.id && option.question.kind == item.kind) &&
         _frozenItems[item.id]?.kind != item.kind)
       return;
-    _itemOverrides[item.id] = item;
+    _itemOverrides[item.id] = ExamTheoryItem(
+      id: item.id,
+      kind: item.kind,
+      prompt: item.prompt,
+      options: List<String>.unmodifiable(item.options),
+    );
     notifyListeners();
   }
 
@@ -542,9 +548,12 @@ class ExamComposerState extends ChangeNotifier {
     'practicalHeader': practicalHeader,
     'items': <Map<String, dynamic>>[
       for (final item in <String, ExamTheoryItem>{
-        ..._frozenItems,
         for (final kind in ExamTheoryQuestion.kinds)
           for (final item in selectedItems(kind)) item.id: item,
+        for (final item in _frozenItems.values)
+          if (!isSelected(item.kind, item.id)) item.id: _itemOverrides[item.id] ?? item,
+        for (final item in _itemOverrides.values)
+          if (!isSelected(item.kind, item.id)) item.id: item,
       }.values)
         <String, dynamic>{
           'id': item.id,

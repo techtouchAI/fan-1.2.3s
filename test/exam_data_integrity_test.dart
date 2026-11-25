@@ -69,6 +69,37 @@ void main() {
     expect(option.question.prompt, isNot('تعديل مستقل'));
   });
 
+  test('deselected local edits survive repeated roundtrips without changing item order', () {
+    final state = composer();
+    final options = state.optionsOf(QuestionKind.choice);
+    state.toggleItem(QuestionKind.choice, options.first.id);
+    state.toggleItem(QuestionKind.choice, options.last.id);
+    final choices = <String>['محلي', 'ثان'];
+    state.editItem(
+      ExamTheoryItem(
+        id: options.last.id,
+        kind: QuestionKind.choice,
+        prompt: 'آخر محرر',
+        options: choices,
+      ),
+    );
+    choices.clear();
+    var saved = state.toDraft();
+    var restored = composer()..restoreDraft(saved);
+    expect(restored.toDraft(), saved);
+    expect(restored.selectedItems(QuestionKind.choice).map((v) => v.id), <String>[
+      options.first.id,
+      options.last.id,
+    ]);
+    restored.toggleItem(QuestionKind.choice, options.last.id);
+    saved = restored.toDraft();
+    restored = composer()..restoreDraft(saved);
+    expect(restored.toDraft(), saved);
+    restored.toggleItem(QuestionKind.choice, options.last.id);
+    expect(restored.selectedItems(QuestionKind.choice).last.options, <String>['محلي', 'ثان']);
+    expect(restored.selectedItems(QuestionKind.choice).last.prompt, 'آخر محرر');
+  });
+
   test('v1 migration retains missing ids and requires explicit removal', () {
     final state = composer();
     final old = state.toDraft()
@@ -268,6 +299,25 @@ void main() {
     final rows = jsonDecode(prefs.getString(PrefsExamQuestionBankRepository.storageKey)!) as List;
     expect(rows.length, 2);
     expect(rows.last, bad);
+  });
+
+  test('saving groups never silently drops entries after the previous limit', () async {
+    final state = composer();
+    final entries = <ExamQuestionBankEntry>[
+      for (var i = 0; i < 25; i++) state.toBankEntry(id: 'group-$i', title: '$i'),
+    ];
+    const repository = PrefsExamQuestionBankRepository();
+    await repository.save(entries);
+    expect((await repository.load()).map((e) => e.id), entries.map((e) => e.id));
+  });
+
+  test('a corrupt group root cannot be overwritten by an apparently empty bank', () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(PrefsExamQuestionBankRepository.storageKey, '{broken');
+    const repository = PrefsExamQuestionBankRepository();
+    expect(await repository.load(), isEmpty);
+    await expectLater(repository.save(<ExamQuestionBankEntry>[]), throwsFormatException);
+    expect(prefs.getString(PrefsExamQuestionBankRepository.storageKey), '{broken');
   });
 
   test('optional corrupt profile fields do not prevent startup', () async {

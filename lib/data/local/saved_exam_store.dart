@@ -38,6 +38,7 @@ class SavedExamArchive {
     }
     if (root is! Map<String, dynamic> ||
         root['papers'] is! List ||
+        (root.containsKey('recoveryRecords') && root['recoveryRecords'] is! List) ||
         (root['version'] != null && root['version'] != 1)) {
       return SavedExamArchive(
         papers: const [],
