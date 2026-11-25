@@ -164,7 +164,7 @@ void main() {
 
   testWidgets('the settings page switches the reading font', (WidgetTester tester) async {
     final state = await pumpApplication(tester);
-    await tapDestination(tester, 'الإعدادات');
+    await openSettings(tester);
 
     await tester.tap(find.text('القاهرة').first);
     await tester.pump();
@@ -233,7 +233,7 @@ void main() {
   testWidgets('the grade can be changed again from the settings page',
       (WidgetTester tester) async {
     final state = await pumpApplication(tester);
-    await tapDestination(tester, 'الإعدادات');
+    await openSettings(tester);
 
     await tester.tap(find.textContaining('الصف الثالث المتوسط').first);
     await tester.pump();
@@ -357,7 +357,7 @@ void main() {
 
   testWidgets('dark mode can be switched from the settings page', (WidgetTester tester) async {
     final state = await pumpApplication(tester);
-    await tapDestination(tester, 'الإعدادات');
+    await openSettings(tester);
 
     await tester.tap(find.text('ليلي').first);
     await tester.pump();

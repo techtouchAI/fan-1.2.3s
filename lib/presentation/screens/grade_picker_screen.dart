@@ -36,7 +36,7 @@ class GradePickerScreen extends StatelessWidget {
                         height: 52,
                         decoration: BoxDecoration(
                           color: scheme.primary,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(AppRadii.lg),
                         ),
                         alignment: Alignment.center,
                         child: Icon(Icons.palette, color: scheme.onPrimary, size: 28),
@@ -115,7 +115,7 @@ class _GradeCard extends StatelessWidget {
                 height: 46,
                 decoration: BoxDecoration(
                   color: scheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
                 alignment: Alignment.center,
                 child: Icon(Icons.school_outlined, color: scheme.onPrimaryContainer, size: 24),

@@ -34,6 +34,8 @@ jobs:
           status=${PIPESTATUS[0]}
           python3 tools/ci_report.py log "$RUNNER_TEMP/content.txt"
           exit $status
+      - name: Guard design migration content and question order
+        run: python3 tools/verify_design_content.py
       - name: Validate the JSON payloads
         run: |
           python3 - <<'PY'

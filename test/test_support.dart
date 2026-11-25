@@ -42,7 +42,7 @@ AppState buildState({
   );
 }
 
-/// Taps one of the four shell destinations, whichever navigation widget the
+/// Taps one of the five shell destinations, whichever navigation widget the
 /// current window size uses.
 Future<void> tapDestination(WidgetTester tester, String label) async {
   final rail = find.byType(NavigationRail);
@@ -81,6 +81,7 @@ Future<AppState> pumpScreen(
   Widget child, {
   Size size = const Size(1200, 1600),
   ReadingProgress? progress,
+  ThemeData? theme,
 }) async {
   final library = await ensureLibrary();
   final state = buildState(library: library, progress: progress);
@@ -98,7 +99,7 @@ Future<AppState> pumpScreen(
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        theme: AppTheme.light(),
+        theme: theme ?? AppTheme.light(),
         home: Material(
           color: AppColors.paper,
           child: child,
@@ -109,4 +110,11 @@ Future<AppState> pumpScreen(
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 200));
   return state;
+}
+
+/// Settings moved from the curriculum tabs to an explicit header/rail action.
+Future<void> openSettings(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('الإعدادات').first);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 350));
 }

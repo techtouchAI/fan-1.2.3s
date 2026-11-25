@@ -135,11 +135,17 @@ class FavoritesScreen extends StatelessWidget {
     }
     return SafeArea(
       bottom: false,
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
+      child: Column(
         children: <Widget>[
           const AppPageHeader(title: 'المفضلة', subtitle: 'العناصر التي حفظتها للرجوع السريع'),
-          AppPage(child: body),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
+              children: <Widget>[
+                AppPage(child: body),
+              ],
+            ),
+          ),
         ],
       ),
     );

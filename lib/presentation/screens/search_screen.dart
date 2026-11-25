@@ -236,7 +236,7 @@ class _HitTile extends StatelessWidget {
                 height: 38,
                 decoration: BoxDecoration(
                   color: scheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
                 ),
                 child: Icon(icon, size: 18, color: scheme.primary),
               ),

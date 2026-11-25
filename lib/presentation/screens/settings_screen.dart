@@ -263,7 +263,7 @@ class SettingsScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
         children: <Widget>[
-          const AppPageHeader(title: 'الإعدادات', subtitle: 'المظهر، الخط، التقدم، ومحتوى التطبيق'),
+          const AppPageHeader(showSettings: false, title: 'الإعدادات', subtitle: 'المظهر، الخط، التقدم، ومحتوى التطبيق'),
           AppPage(maxWidth: AppLayout.readingMaxWidth, child: body),
         ],
       ),

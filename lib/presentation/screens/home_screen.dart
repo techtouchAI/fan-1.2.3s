@@ -24,8 +24,7 @@ class HomeScreen extends StatelessWidget {
     final library = state.library;
     return SafeArea(
       bottom: false,
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
+      child: Column(
         children: <Widget>[
           AppPageHeader(
             title: 'مِرسم',
@@ -60,32 +59,48 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
           ),
-          AppPage(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
               children: <Widget>[
-                const _ProgressPanel(),
-                const SizedBox(height: AppSpacing.xl),
-                if (state.lastReadUnit != null) ...<Widget>[
-                  _ContinueCard(unit: state.lastReadUnit!),
-                  const SizedBox(height: AppSpacing.xl),
-                ],
-                _StatsRow(state: state),
-                const SizedBox(height: AppSpacing.xl),
-                SectionHeader(
-                  title: 'أقسام التطبيق',
-                  subtitle: 'مداخل منظّمة للمعرفة الفنية',
-                  accent: Theme.of(context).colorScheme.secondary,
-                ),
-                _SectionsGrid(state: state),
-                const SizedBox(height: AppSpacing.xl),
-                SectionHeader(
-                  title: 'اختصارات',
-                  accent: Theme.of(context).colorScheme.tertiary,
-                ),
-                _ShortcutsRow(state: state),
-                const SizedBox(height: AppSpacing.xl),
-                _FooterNote(library: library),
+                AppPage(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      const _ProgressPanel(),
+                      const SizedBox(height: AppSpacing.xl),
+                      _StatsRow(state: state),
+                      const SizedBox(height: AppSpacing.xl),
+                      SectionHeader(
+                        title: 'أدوات المدرس والامتحانات',
+                        accent: Theme.of(context).colorScheme.secondary,
+                      ),
+                      const _ToolActions(),
+                      const SizedBox(height: AppSpacing.xl),
+                      if (state.lastReadUnit != null) ...<Widget>[
+                        _ContinueCard(unit: state.lastReadUnit!),
+                        const SizedBox(height: AppSpacing.xl),
+                      ],
+                      SectionHeader(title: 'وحدات ${state.gradeTitle}'),
+                      _HomeUnits(state: state),
+                      const SizedBox(height: AppSpacing.xl),
+                      SectionHeader(
+                        title: 'أقسام التطبيق',
+                        subtitle: 'مداخل منظّمة للمعرفة الفنية',
+                        accent: Theme.of(context).colorScheme.secondary,
+                      ),
+                      _SectionsGrid(state: state),
+                      const SizedBox(height: AppSpacing.xl),
+                      SectionHeader(
+                        title: 'اختصارات',
+                        accent: Theme.of(context).colorScheme.tertiary,
+                      ),
+                      _ShortcutsRow(state: state),
+                      const SizedBox(height: AppSpacing.xl),
+                      _FooterNote(library: library),
+              ],
+            ),
+          ),
               ],
             ),
           ),
@@ -137,8 +152,15 @@ class _ProgressPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: scheme.surface,
-        borderRadius: BorderRadius.circular(AppRadii.lg),
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: <Color>[
+            scheme.primaryContainer.withValues(alpha: 0.72),
+            scheme.secondaryContainer.withValues(alpha: 0.55),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
         border: Border.all(color: scheme.outlineVariant),
       ),
       child: Wrap(
@@ -188,7 +210,7 @@ class _ContinueCard extends StatelessWidget {
                 height: 52,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AppRadii.lg),
                 ),
                 child: Icon(Icons.play_arrow_rounded, color: accent, size: 28),
               ),
@@ -297,31 +319,10 @@ class _SectionsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Printing is an application feature, not a curriculum section in JSON.
-    final sections = <ContentSection>[
-      const ContentSection(
-        id: 'question-printing',
-        title: 'طباعة أسئلة الامتحان',
-        subtitle: 'اختر الوحدات واطبع أسئلتها مع الإجابات',
-        kind: 'question-printing',
-      ),
-      // The question writer is an application feature too, kept beside the
-      // printing card so it is reachable without scrolling to the shortcuts.
-      const ContentSection(
-        id: 'exam-composer',
-        title: 'كتابة الأسئلة',
-        subtitle: 'اكتب ورقة امتحان وصدّرها ملف وورد مطابقاً للنموذج الرسمي',
-        kind: 'exam-composer',
-      ),
-      ...state.visibleSections,
-    ];
+    final sections = state.visibleSections;
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final columns = constraints.maxWidth >= 980
-            ? 3
-            : constraints.maxWidth >= 640
-                ? 2
-                : 1;
+        final columns = constraints.maxWidth >= 900 ? 2 : 1;
         final spacing = AppSpacing.md;
         final itemWidth = (constraints.maxWidth - spacing * (columns - 1)) / columns;
         return Wrap(
@@ -352,15 +353,12 @@ class _SectionCard extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final accent = switch (section.kind) {
       'intro' => AppColors.fromAccent('secondary', isDark),
-      'question-printing' => AppColors.fromAccent('secondary', isDark),
       'lessons' => AppColors.fromAccent('green', isDark),
       'drawings' => AppColors.fromAccent('ink', isDark),
       'plates' => AppColors.fromAccent('gold', isDark),
       _ => AppColors.fromAccent('primary', isDark),
     };
     final count = switch (section.kind) {
-      'question-printing' => state.visibleUnits.fold<int>(
-          0, (int sum, LearningUnit unit) => sum + unit.questions.length),
       'lessons' => state.library.lessons.length,
       'drawings' => state.visibleDrawings.length,
       'plates' => state.visiblePlates.length,
@@ -391,14 +389,13 @@ class _SectionCard extends StatelessWidget {
                     height: 44,
                     decoration: BoxDecoration(
                       color: accent.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(AppRadii.md),
                     ),
                     child: Icon(_iconFor(section.kind), color: accent, size: 22),
                   ),
                   const Spacer(),
                   Text(
                     '${toArabicDigits('$count')} ${switch (section.kind) {
-                      'question-printing' => 'سؤالاً',
                       'lessons' => 'دروس',
                       'drawings' => 'رسوم',
                       'plates' => 'لوحة',
@@ -434,12 +431,6 @@ class _SectionCard extends StatelessWidget {
 
   void _openSection(BuildContext context, ContentSection section) {
     switch (section.kind) {
-      case 'question-printing':
-        AppRoutes.openQuestionPrinting(context);
-        break;
-      case 'exam-composer':
-        AppRoutes.openExamComposer(context);
-        break;
       case 'lessons':
         AppRoutes.openLessons(context);
         break;
@@ -465,10 +456,6 @@ class _SectionCard extends StatelessWidget {
 
   IconData _iconFor(String kind) {
     switch (kind) {
-      case 'question-printing':
-        return Icons.print_outlined;
-      case 'exam-composer':
-        return Icons.note_add_outlined;
       case 'intro':
         return Icons.auto_stories_outlined;
       case 'theatre':
@@ -550,6 +537,158 @@ class _FooterNote extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Reference dashboard tools: a two-column row on wide layouts, stacked on phones.
+class _ToolActions extends StatelessWidget {
+  const _ToolActions();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final cards = <Widget>[
+      _ToolActionCard(
+        key: const ValueKey<String>('open-exam-composer'),
+        title: 'كتابة الأسئلة',
+        subtitle: 'اكتب ورقة امتحان وصدّرها ملف وورد مطابقاً للنموذج الرسمي',
+        icon: Icons.description_outlined,
+        accent: scheme.primary,
+        onTap: () => AppRoutes.openExamComposer(context),
+      ),
+      _ToolActionCard(
+        key: const ValueKey<String>('open-question-printer'),
+        title: 'طباعة أسئلة الامتحان',
+        subtitle: 'اختر الوحدات واطبع أسئلتها مع الإجابات',
+        icon: Icons.print_outlined,
+        accent: scheme.secondary,
+        onTap: () => AppRoutes.openQuestionPrinting(context),
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        if (constraints.maxWidth >= 680) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(child: cards[0]),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(child: cards[1]),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[cards[0], const SizedBox(height: AppSpacing.sm), cards[1]],
+        );
+      },
+    );
+  }
+}
+
+class _ToolActionCard extends StatelessWidget {
+  const _ToolActionCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(AppRadii.lg),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            border: Border.all(color: accent.withValues(alpha: 0.45)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                child: Icon(icon, color: accent),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(title, style: theme.textTheme.titleMedium),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(subtitle, style: theme.textTheme.bodySmall),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_left, color: theme.colorScheme.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeUnits extends StatelessWidget {
+  const _HomeUnits({required this.state});
+
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final units = state.visibleUnits.where((unit) => !unit.isStandalone).toList(growable: false);
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final columns = constraints.maxWidth >= 900 ? 2 : 1;
+        final width = (constraints.maxWidth - AppSpacing.md * (columns - 1)) / columns;
+        return Wrap(
+          spacing: AppSpacing.md,
+          runSpacing: AppSpacing.sm,
+          children: <Widget>[
+            for (final unit in units)
+              SizedBox(
+                width: width,
+                child: Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.all(AppSpacing.md),
+                    leading: CircleAvatar(
+                      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                      child: state.isRead(unit.id)
+                          ? const Icon(Icons.check_rounded)
+                          : Text(toArabicDigits('${unit.order}')),
+                    ),
+                    title: Text('${unit.numberLabel}: ${unit.displayTitle}'),
+                    subtitle: Text(unit.summary, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    trailing: const Icon(Icons.chevron_left),
+                    onTap: () => AppRoutes.openUnit(context, unit),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

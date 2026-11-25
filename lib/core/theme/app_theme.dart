@@ -1,244 +1,182 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'dimens.dart';
 
-/// Typography and component styling shared by the whole application.
 abstract final class AppTheme {
-  static const String bodyFontDefault = 'Almarai';
-  static const String displayFont = 'Amiri';
+  static const String uiFont = 'Almarai';
+  static const String literaryFont = 'Amiri';
+  static const String bodyFontDefault = uiFont;
+  static const String displayFont = literaryFont;
 
-  /// Typeface of the body text; every bundled family has the same weights, so
-  /// switching it at runtime only changes the family name.
-  static TextTheme _textTheme(TextTheme base, Color ink, Color soft, String bodyFont) {
-    return base.apply(fontFamily: bodyFont, bodyColor: ink, displayColor: ink).copyWith(
-          displayLarge: base.displayLarge!.copyWith(
-            fontFamily: displayFont,
-            fontWeight: FontWeight.w700,
-            fontSize: 44,
-            height: 1.25,
-            color: ink,
-          ),
-          displayMedium: base.displayMedium!.copyWith(
-            fontFamily: displayFont,
-            fontWeight: FontWeight.w700,
-            fontSize: 34,
-            height: 1.3,
-            color: ink,
-          ),
-          headlineLarge: base.headlineLarge!.copyWith(
-            fontFamily: displayFont,
-            fontWeight: FontWeight.w700,
-            fontSize: 28,
-            height: 1.35,
-            color: ink,
-          ),
-          headlineMedium: base.headlineMedium!.copyWith(
-            fontFamily: bodyFont,
-            fontWeight: FontWeight.w800,
-            fontSize: 22,
-            height: 1.45,
-            color: ink,
-          ),
-          titleLarge: base.titleLarge!.copyWith(
-            fontFamily: bodyFont,
-            fontWeight: FontWeight.w700,
-            fontSize: 19,
-            height: 1.5,
-            color: ink,
-          ),
-          titleMedium: base.titleMedium!.copyWith(
-            fontFamily: bodyFont,
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-            height: 1.6,
-            color: ink,
-          ),
-          bodyLarge: base.bodyLarge!.copyWith(
-            fontFamily: bodyFont,
-            fontWeight: FontWeight.w400,
-            fontSize: 16.5,
-            height: 1.95,
-            color: ink,
-          ),
-          bodyMedium: base.bodyMedium!.copyWith(
-            fontFamily: bodyFont,
-            fontWeight: FontWeight.w400,
-            fontSize: 14.5,
-            height: 1.9,
-            color: soft,
-          ),
-          labelLarge: base.labelLarge!.copyWith(
-            fontFamily: bodyFont,
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
-            letterSpacing: 0,
-          ),
-          labelMedium: base.labelMedium!.copyWith(
-            fontFamily: bodyFont,
-            fontWeight: FontWeight.w700,
-            fontSize: 12.5,
-            letterSpacing: 0,
-            color: soft,
-          ),
-        );
-  }
+  static ThemeData light({String bodyFont = uiFont}) => _build(Brightness.light, bodyFont);
 
-  static ThemeData light({String bodyFont = bodyFontDefault}) {
-    const scheme = ColorScheme(
-      brightness: Brightness.light,
-      primary: AppColors.clay,
-      onPrimary: Colors.white,
-      primaryContainer: AppColors.claySoft,
-      onPrimaryContainer: Color(0xFF5A1E10),
-      secondary: AppColors.indigo,
-      onSecondary: Colors.white,
-      secondaryContainer: AppColors.indigoSoft,
-      onSecondaryContainer: Color(0xFF0B2C37),
-      tertiary: AppColors.ochre,
-      onTertiary: Color(0xFF3A2A05),
-      tertiaryContainer: AppColors.ochreSoft,
-      onTertiaryContainer: Color(0xFF4A3608),
-      error: Color(0xFFB3261E),
-      onError: Colors.white,
-      surface: AppColors.paperHigh,
-      onSurface: AppColors.ink,
-      surfaceContainerHighest: AppColors.paper,
-      onSurfaceVariant: AppColors.inkSoft,
-      outline: Color(0xFFCFC3B0),
-      outlineVariant: Color(0xFFE6DCCB),
-      shadow: Color(0x22000000),
-      scrim: Color(0x99000000),
-      inverseSurface: AppColors.ink,
-      onInverseSurface: AppColors.paper,
-      inversePrimary: AppColors.claySoft,
+  static ThemeData dark({String bodyFont = uiFont}) => _build(Brightness.dark, bodyFont);
+
+  static ThemeData _build(Brightness brightness, String bodyFont) {
+    final isDark = brightness == Brightness.dark;
+    final scheme = ColorScheme(
+      brightness: brightness,
+      primary: isDark ? AppColors.terracottaLight : AppColors.terracotta,
+      onPrimary: isDark ? const Color(0xFF2B100A) : Colors.white,
+      primaryContainer: isDark ? const Color(0xFF4B2118) : AppColors.crimsonMist,
+      onPrimaryContainer: isDark ? const Color(0xFFFFDBD2) : const Color(0xFF3A1007),
+      secondary: isDark ? AppColors.tealLight : AppColors.deepTeal,
+      onSecondary: isDark ? const Color(0xFF06262C) : Colors.white,
+      secondaryContainer: isDark ? const Color(0xFF143A42) : AppColors.tealMist,
+      onSecondaryContainer: isDark ? const Color(0xFFC8F0F7) : const Color(0xFF08272E),
+      tertiary: isDark ? AppColors.goldLight : AppColors.warmGold,
+      onTertiary: isDark ? const Color(0xFF2B1D04) : Colors.white,
+      tertiaryContainer: isDark ? const Color(0xFF433210) : const Color(0xFFF8E9C8),
+      onTertiaryContainer: isDark ? const Color(0xFFFFE5B4) : const Color(0xFF332204),
+      error: isDark ? const Color(0xFFFFB4AB) : const Color(0xFFB3261E),
+      onError: isDark ? const Color(0xFF690005) : Colors.white,
+      surface: isDark ? AppColors.nightSurface : AppColors.paperElevated,
+      onSurface: isDark ? AppColors.nightInk : AppColors.ink,
+      onSurfaceVariant: isDark ? AppColors.nightMuted : AppColors.inkMuted,
+      outline: isDark ? const Color(0xFF6E7285) : const Color(0xFF9C9280),
+      outlineVariant: isDark ? AppColors.nightBorder : AppColors.border,
+      surfaceContainerHighest: isDark ? AppColors.nightElevated : AppColors.paperSubtle,
     );
-    return _build(scheme, AppColors.paper, bodyFont);
-  }
 
-  static ThemeData dark({String bodyFont = bodyFontDefault}) {
-    const scheme = ColorScheme(
-      brightness: Brightness.dark,
-      primary: Color(0xFFE38A6E),
-      onPrimary: Color(0xFF3B1108),
-      primaryContainer: Color(0xFF5D2A1D),
-      onPrimaryContainer: Color(0xFFF6D5C9),
-      secondary: Color(0xFF7FB6C7),
-      onSecondary: Color(0xFF05222B),
-      secondaryContainer: Color(0xFF20434E),
-      onSecondaryContainer: Color(0xFFCDE6EE),
-      tertiary: Color(0xFFE8BE72),
-      onTertiary: Color(0xFF39280A),
-      tertiaryContainer: Color(0xFF4E3B14),
-      onTertiaryContainer: Color(0xFFF7E3BC),
-      error: Color(0xFFF2B8B5),
-      onError: Color(0xFF601410),
-      surface: AppColors.nightSurface,
-      onSurface: Color(0xFFF2EDE4),
-      surfaceContainerHighest: AppColors.nightElevated,
-      onSurfaceVariant: Color(0xFFC4C2CC),
-      outline: Color(0xFF4A4C56),
-      outlineVariant: Color(0xFF33353D),
-      shadow: Color(0x66000000),
-      scrim: Color(0xCC000000),
-      inverseSurface: Color(0xFFF2EDE4),
-      onInverseSurface: AppColors.night,
-      inversePrimary: AppColors.clay,
+    final onSurface = scheme.onSurface;
+    final muted = scheme.onSurfaceVariant;
+
+    final textTheme = TextTheme(
+      displayLarge: TextStyle(fontFamily: literaryFont, fontSize: 40, fontWeight: FontWeight.w700, height: 1.35, color: onSurface),
+      displayMedium: TextStyle(fontFamily: literaryFont, fontSize: 34, fontWeight: FontWeight.w700, height: 1.35, color: onSurface),
+      headlineLarge: TextStyle(fontFamily: literaryFont, fontSize: 28, fontWeight: FontWeight.w700, height: 1.35, color: onSurface),
+      displaySmall: TextStyle(
+        fontFamily: literaryFont,
+        fontSize: 30,
+        fontWeight: FontWeight.w700,
+        height: 1.35,
+        color: onSurface,
+      ),
+      headlineMedium: TextStyle(
+        fontFamily: bodyFont,
+        fontSize: 22,
+        fontWeight: FontWeight.w800,
+        height: 1.4,
+        color: onSurface,
+      ),
+      titleLarge: TextStyle(
+        fontFamily: bodyFont,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        height: 1.45,
+        color: onSurface,
+      ),
+      titleMedium: TextStyle(
+        fontFamily: bodyFont,
+        fontSize: 15.5,
+        fontWeight: FontWeight.w700,
+        height: 1.45,
+        color: onSurface,
+      ),
+      titleSmall: TextStyle(
+        fontFamily: bodyFont,
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        height: 1.4,
+        color: onSurface,
+      ),
+      bodyLarge: TextStyle(
+        fontFamily: bodyFont,
+        fontSize: 16,
+        fontWeight: FontWeight.w400,
+        height: 1.75,
+        color: onSurface,
+      ),
+      bodyMedium: TextStyle(
+        fontFamily: bodyFont,
+        fontSize: 14.5,
+        fontWeight: FontWeight.w400,
+        height: 1.65,
+        color: onSurface,
+      ),
+      bodySmall: TextStyle(
+        fontFamily: bodyFont,
+        fontSize: 12.5,
+        fontWeight: FontWeight.w400,
+        height: 1.5,
+        color: muted,
+      ),
+      labelLarge: TextStyle(
+        fontFamily: bodyFont,
+        fontSize: 13.5,
+        fontWeight: FontWeight.w700,
+        height: 1.3,
+        color: onSurface,
+      ),
+      labelMedium: TextStyle(
+        fontFamily: bodyFont,
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        height: 1.3,
+        color: muted,
+      ),
+      labelSmall: TextStyle(
+        fontFamily: bodyFont,
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+        height: 1.25,
+        color: muted,
+      ),
     );
-    return _build(scheme, AppColors.night, bodyFont);
-  }
 
-  static ThemeData _build(ColorScheme scheme, Color scaffoldBackground, String bodyFont) {
-    final base = ThemeData(brightness: scheme.brightness, useMaterial3: true, colorScheme: scheme);
-    final textTheme = _textTheme(base.textTheme, scheme.onSurface, scheme.onSurfaceVariant, bodyFont);
-    return base.copyWith(
-      scaffoldBackgroundColor: scaffoldBackground,
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      colorScheme: scheme,
+      fontFamily: bodyFont,
+      scaffoldBackgroundColor: isDark ? AppColors.night : AppColors.paper,
       textTheme: textTheme,
-      splashFactory: InkSparkle.splashFactory,
       appBarTheme: AppBarTheme(
-        backgroundColor: scaffoldBackground,
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: scheme.onSurface,
+        backgroundColor: isDark ? AppColors.night : AppColors.paper,
+        foregroundColor: onSurface,
         elevation: 0,
+        scrolledUnderElevation: 1,
         centerTitle: false,
         titleTextStyle: textTheme.titleLarge,
       ),
       cardTheme: CardThemeData(
-        color: scheme.brightness == Brightness.light ? Colors.white : AppColors.nightElevated,
-        surfaceTintColor: Colors.transparent,
+        color: scheme.surface,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(AppRadii.lg),
           side: BorderSide(color: scheme.outlineVariant),
         ),
       ),
-      chipTheme: base.chipTheme.copyWith(
-        backgroundColor: scheme.surfaceContainerHighest,
-        side: BorderSide(color: scheme.outlineVariant),
-        labelStyle: textTheme.labelMedium,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      ),
-      dividerTheme: DividerThemeData(color: scheme.outlineVariant, thickness: 1),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          textStyle: textTheme.labelLarge,
-        ),
-      ),
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          side: BorderSide(color: scheme.outline),
-          textStyle: textTheme.labelLarge,
-        ),
-      ),
-      textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(textStyle: textTheme.labelLarge),
-      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surfaceContainerHighest,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        fillColor: scheme.surface,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.md,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadii.md),
           borderSide: BorderSide(color: scheme.outlineVariant),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadii.md),
           borderSide: BorderSide(color: scheme.outlineVariant),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: scheme.primary, width: 1.6),
+      ),
+      chipTheme: ChipThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.sm),
         ),
       ),
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: scheme.brightness == Brightness.light
-            ? AppColors.paperHigh
-            : AppColors.nightSurface,
-        indicatorColor: scheme.primaryContainer,
-        surfaceTintColor: Colors.transparent,
-        labelTextStyle: WidgetStatePropertyAll(textTheme.labelMedium),
-        height: 68,
-      ),
-      navigationRailTheme: NavigationRailThemeData(
-        backgroundColor: Colors.transparent,
-        indicatorColor: scheme.primaryContainer,
-        selectedLabelTextStyle: textTheme.labelLarge,
-        unselectedLabelTextStyle: textTheme.labelMedium,
-      ),
-      sliderTheme: base.sliderTheme.copyWith(
-        activeTrackColor: scheme.primary,
-        thumbColor: scheme.primary,
+      dividerTheme: DividerThemeData(
+        color: scheme.outlineVariant,
+        thickness: 1,
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: scheme.inverseSurface,
-        contentTextStyle: textTheme.bodyMedium!.copyWith(color: scheme.onInverseSurface),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadii.md)),
       ),
     );
   }

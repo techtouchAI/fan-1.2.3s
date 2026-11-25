@@ -26,7 +26,7 @@ class TextScaleControls extends StatelessWidget {
           tooltip: 'تصغير الخط',
           visualDensity: VisualDensity.compact,
           onPressed: canShrink ? () => state.setTextScale(state.textScale - AppState.TextScaleStep) : null,
-          icon: const Icon(Icons.text_decrease, size: 20),
+          icon: const Icon(Icons.text_decrease, size: 19),
         ),
         if (showValue)
           Padding(
@@ -40,7 +40,7 @@ class TextScaleControls extends StatelessWidget {
           tooltip: 'تكبير الخط',
           visualDensity: VisualDensity.compact,
           onPressed: canGrow ? () => state.setTextScale(state.textScale + AppState.TextScaleStep) : null,
-          icon: const Icon(Icons.text_increase, size: 20),
+          icon: const Icon(Icons.text_increase, size: 19),
         ),
       ],
     );

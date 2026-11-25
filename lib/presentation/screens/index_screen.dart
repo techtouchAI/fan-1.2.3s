@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/dimens.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/utils/arabic_text.dart';
 import '../../core/widgets/app_page.dart';
 import '../../core/widgets/empty_state.dart';
@@ -31,8 +32,7 @@ class _IndexScreenState extends State<IndexScreen> {
     final state = AppScope.of(context);
     return SafeArea(
       bottom: false,
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
+      child: Column(
         children: <Widget>[
           AppPageHeader(
             title: 'الفهرس',
@@ -45,49 +45,56 @@ class _IndexScreenState extends State<IndexScreen> {
               ),
             ],
           ),
-          AppPage(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
               children: <Widget>[
-                TextField(
-                  textInputAction: TextInputAction.search,
-                  onChanged: (String value) => setState(() => _query = value),
-                  decoration: const InputDecoration(
-                    hintText: 'ابحث باسم الوحدة أو الموضوع…',
-                    prefixIcon: Icon(Icons.filter_list),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: <Widget>[
-                    _FilterChip(
-                      label: 'الكل',
-                      selected: _filter == _IndexFilter.all,
-                      onSelected: () => setState(() => _filter = _IndexFilter.all),
-                    ),
-                    _FilterChip(
-                      label: 'غير مقروء',
-                      selected: _filter == _IndexFilter.unread,
-                      onSelected: () => setState(() => _filter = _IndexFilter.unread),
-                    ),
-                    _FilterChip(
-                      label: 'المفضلة',
-                      selected: _filter == _IndexFilter.favorites,
-                      onSelected: () => setState(() => _filter = _IndexFilter.favorites),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                ...state.visibleSections.map(
-                  (ContentSection section) => _SectionBlock(
-                    section: section,
-                    state: state,
-                    filter: _filter,
-                    query: _query,
-                  ),
-                ),
+                AppPage(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      TextField(
+                        textInputAction: TextInputAction.search,
+                        onChanged: (String value) => setState(() => _query = value),
+                        decoration: const InputDecoration(
+                          hintText: 'ابحث باسم الوحدة أو الموضوع…',
+                          prefixIcon: Icon(Icons.filter_list),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
+                        children: <Widget>[
+                          _FilterChip(
+                            label: 'الكل',
+                            selected: _filter == _IndexFilter.all,
+                            onSelected: () => setState(() => _filter = _IndexFilter.all),
+                          ),
+                          _FilterChip(
+                            label: 'غير مقروء',
+                            selected: _filter == _IndexFilter.unread,
+                            onSelected: () => setState(() => _filter = _IndexFilter.unread),
+                          ),
+                          _FilterChip(
+                            label: 'المفضلة',
+                            selected: _filter == _IndexFilter.favorites,
+                            onSelected: () => setState(() => _filter = _IndexFilter.favorites),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      ...state.visibleSections.map(
+                        (ContentSection section) => _SectionBlock(
+                          section: section,
+                          state: state,
+                          filter: _filter,
+                          query: _query,
+                        ),
+                      ),
+              ],
+            ),
+          ),
               ],
             ),
           ),
@@ -306,7 +313,7 @@ class _UnitTile extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
                 child: isRead
                     ? Icon(Icons.check_rounded, color: accent, size: 22)
@@ -465,7 +472,7 @@ class _ExtraSection extends StatelessWidget {
                             height: 42,
                             decoration: BoxDecoration(
                               color: scheme.tertiary.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(13),
+                              borderRadius: BorderRadius.circular(AppRadii.md),
                             ),
                             child: Icon(icon, size: 20, color: scheme.tertiary),
                           ),
@@ -514,7 +521,7 @@ Color _accent(ThemeData theme, String accent) {
     case 'gold':
       return theme.colorScheme.tertiary;
     case 'green':
-      return const Color(0xFF4E7C59);
+      return AppColors.fromAccent('green', theme.brightness == Brightness.dark);
     case 'ink':
       return theme.colorScheme.onSurfaceVariant;
     case 'primary':

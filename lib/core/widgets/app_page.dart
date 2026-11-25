@@ -2,26 +2,33 @@ import 'package:flutter/material.dart';
 
 import '../theme/dimens.dart';
 
-/// Constrains page content to a comfortable measure on wide Windows screens.
+/// Centers page content within a comfortable maximum width with responsive
+/// horizontal padding.
 class AppPage extends StatelessWidget {
   const AppPage({
     super.key,
     required this.child,
     this.maxWidth = AppLayout.pageMaxWidth,
-    this.padding = const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+    this.padding,
   });
 
   final Widget child;
   final double maxWidth;
-  final EdgeInsets padding;
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final horizontal = width >= 720 ? AppSpacing.xl : AppSpacing.lg;
     return Align(
-      alignment: AlignmentDirectional.topCenter,
+      alignment: Alignment.topCenter,
+      heightFactor: 1.0,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
-        child: Padding(padding: padding, child: child),
+        child: Padding(
+          padding: padding ?? EdgeInsets.symmetric(horizontal: horizontal),
+          child: child,
+        ),
       ),
     );
   }
