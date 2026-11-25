@@ -126,7 +126,7 @@ void main() {
       expect(controller.visiblePage(100), 1);
       expect(controller.transformation.value.storage.toList(), before);
       expect(find.byTooltip('معاينة ملء الشاشة'), findsNothing);
-      await tester.pageBack();
+      await tester.tap(find.byType(BackButton));
       await tester.pumpAndSettle();
       expect(controller.visiblePage(100), 1);
       expect(controller.transformation.value.storage.toList(), before);
@@ -226,18 +226,28 @@ void main() {
         size: const Size(900, 1000),
       );
       await tester.pumpAndSettle();
-      await tester.runAsync(() async {
-        await tester.tap(find.byKey(const ValueKey<String>('export-exam-image')));
+      await tester.tap(find.byKey(const ValueKey<String>('export-exam-image')));
+      await tester.pump();
+      // The engine rasterizes in real time, while endOfFrame and UI future
+      // continuations belong to FakeAsync. Let both zones progress instead of
+      // waiting for a fake-zone completer from inside runAsync.
+      final clock = Stopwatch()..start();
+      while (!exported.isCompleted && clock.elapsed < nativeTimeout) {
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
         await tester.pump();
-        await exported.future.timeout(const Duration(seconds: 30));
-      });
+      }
+      expect(
+        exported.isCompleted,
+        isTrue,
+        reason: 'native page capture completed within 30 seconds',
+      );
       await tester.pumpAndSettle();
       expect(savedBytes!.take(8), <int>[137, 80, 78, 71, 13, 10, 26, 10]);
       expect(savedName, endsWith('-1.png'));
       expect(find.text('مشاركة'), findsOneWidget);
       await tester.tap(find.text('مشاركة'));
       await tester.pumpAndSettle();
-      await tester.runAsync(() => shared.future.timeout(nativeTimeout));
+      expect(shared.isCompleted, isTrue, reason: 'share action received the saved bytes');
       expect(find.text('جُهزت المشاركة'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
