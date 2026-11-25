@@ -465,6 +465,54 @@ void main() {
     expect(preview, contains('( 70 درجة )'));
   });
 
+  testWidgets('cancelled Word save does not replace the teacher profile', (tester) async {
+    final repository = MemoryExamProfileRepository();
+    final state = await pumpComposer(
+      tester,
+      repository: repository,
+      exporter: (_, __) async =>
+          const ExamExportResult(message: 'أُلغي الحفظ', status: ExamExportStatus.cancelled),
+    );
+    await fillMinimumPaper(tester, state);
+    await tapKey(tester, 'exam-export');
+    await tester.pumpAndSettle();
+    expect(repository.saveCount, 0);
+    expect(state.teacherProfile.isEmpty, isTrue);
+    expect(find.text('أُلغي الحفظ'), findsOneWidget);
+  });
+
+  testWidgets('successful export updates the observed application profile', (tester) async {
+    final repository = MemoryExamProfileRepository();
+    final state = await pumpComposer(
+      tester,
+      repository: repository,
+      exporter: (_, __) async => const ExamExportResult(message: 'حُفظ الملف'),
+    );
+    await fillMinimumPaper(tester, state);
+    await tapKey(tester, 'exam-export');
+    await tester.pumpAndSettle();
+    expect(state.teacherProfile.teacherName, 'فائز محمد عبد النبي');
+    expect(repository.profile.teacherName, state.teacherProfile.teacherName);
+    expect(repository.saveCount, 1);
+  });
+
+  testWidgets('profile failure after file creation does not report a failed Word export', (
+    tester,
+  ) async {
+    final repository = _FailingProfileSave();
+    final state = await pumpComposer(
+      tester,
+      repository: repository,
+      exporter: (_, __) async => const ExamExportResult(message: 'نجح إنشاء الملف'),
+    );
+    await fillMinimumPaper(tester, state);
+    await tapKey(tester, 'exam-export');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('نجح إنشاء الملف؛ لكن تعذّر حفظ بيانات المدرس'), findsOneWidget);
+    expect(find.textContaining('تعذّر تصدير ملف وورد'), findsNothing);
+    expect(state.teacherProfile.isEmpty, isTrue);
+  });
+
   for (final double width in <double>[320, 360, 390]) {
     testWidgets('fits a ${width.toInt()} pixel phone at the largest text scale', (tester) async {
       tester.platformDispatcher.textScaleFactorTestValue = 1.2;
@@ -483,5 +531,14 @@ void main() {
         expect(findFlexOverflows(tester), isEmpty, reason: 'overflow on $step');
       }
     });
+  }
+}
+
+class _FailingProfileSave implements ExamProfileRepository {
+  @override
+  Future<ExamProfile> load() async => const ExamProfile();
+  @override
+  Future<void> save(ExamProfile profile) async {
+    throw StateError('Disk failure');
   }
 }

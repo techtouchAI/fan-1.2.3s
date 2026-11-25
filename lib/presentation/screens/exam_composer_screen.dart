@@ -301,7 +301,9 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
             ListenableBuilder(
               listenable: _library!,
               builder: (context, _) => IconButton(
-                tooltip: _library!.lastWriteError != null
+                tooltip: _library!.isReadOnly
+                    ? 'الحفظ غير متاح؛ حُفظ المخزن الأصلي دون تغيير'
+                    : _library!.lastWriteError != null
                     ? 'تعذّر الحفظ؛ اضغط لإعادة المحاولة'
                     : _library!.isSaving
                     ? 'جارٍ حفظ آخر تعديل على الجهاز'
@@ -309,7 +311,7 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
                     ? 'تُحفظ الورقة تلقائياً عند أول تعديل'
                     : 'تم حفظ آخر تعديل تلقائياً',
                 icon: Icon(
-                  _library!.lastWriteError != null
+                  _library!.isReadOnly || _library!.lastWriteError != null
                       ? Icons.cloud_off
                       : _library!.isSaving
                       ? Icons.cloud_upload_outlined

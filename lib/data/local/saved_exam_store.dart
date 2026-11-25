@@ -125,3 +125,18 @@ class MemorySavedExamStore extends SavedExamStore {
     _raw = SavedExamStore.encode(papers);
   }
 }
+
+/// Opening the native store failed. Allow reading the curriculum and exporting
+/// a new paper, but never pretend a volatile fallback is durable storage.
+class UnavailableSavedExamStore extends SavedExamStore {
+  UnavailableSavedExamStore(this.warning);
+  final String warning;
+  @override
+  bool get isReadOnly => true;
+  @override
+  List<String> get loadWarnings => <String>[warning];
+  @override
+  List<SavedExamPaper> read() => const <SavedExamPaper>[];
+  @override
+  Future<void> write(List<SavedExamPaper> papers) => Future<void>.error(StateError(warning));
+}

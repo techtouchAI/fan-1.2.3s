@@ -67,6 +67,17 @@ class HomeScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
+                      for (final warning in <String>[
+                        ...state.startupWarnings,
+                        ...state.savedExams.loadWarnings,
+                      ].toSet())
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: Text(
+                            warning,
+                            style: TextStyle(color: Theme.of(context).colorScheme.error),
+                          ),
+                        ),
                       const _ProgressPanel(),
                       if (!state.teacherProfile.isEmpty)
                         Padding(

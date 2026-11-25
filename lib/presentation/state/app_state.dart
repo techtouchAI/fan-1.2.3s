@@ -23,6 +23,7 @@ class AppState extends ChangeNotifier {
     SavedExamStore? savedExamStore,
     ExamProfile teacherProfile = const ExamProfile(),
     ExamProfileRepository? profileRepository,
+    this.startupWarnings = const <String>[],
   }) : _progress = progress,
        _progressRepository = progressRepository {
     this.teacherProfile = teacherProfile;
@@ -45,6 +46,7 @@ class AppState extends ChangeNotifier {
     };
   }
 
+  final List<String> startupWarnings;
   late final ExamProfileRepository _profileRepository;
   late ExamProfile teacherProfile;
   Future<void> _profileWrite = Future<void>.value();

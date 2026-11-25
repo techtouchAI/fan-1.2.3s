@@ -731,8 +731,8 @@ class ExamComposerState extends ChangeNotifier {
     );
   }
 
-  /// Restores a stored group; ids that no longer exist in the curriculum are
-  /// ignored instead of breaking the paper.
+  /// Restores a group atomically. Legacy missing references remain explicit;
+  /// a group never silently retains text or drawing metadata from another one.
   void applyBankEntry(ExamQuestionBankEntry entry) {
     if (entry.contentDraft != null) {
       final merged = toDraft();
@@ -764,16 +764,20 @@ class ExamComposerState extends ChangeNotifier {
       restoreDraft(merged);
       return;
     }
+    if (entry.practicalPrompts.length > practicalSlotCount) {
+      throw const FormatException('المجموعة تتجاوز عدد الفقرات العملية المدعوم؛ لم تتغير الورقة.');
+    }
+    restorationWarnings
+      ..clear()
+      ..add(
+        'مجموعة قديمة: استُعيدت الاختيارات من المنهج الحالي؛ لم تكن هذه المجموعة تحفظ النصوص والتعديلات مستقلةً.',
+      );
     // V1 groups are selection templates, not snapshots: clear previous local
     // edits and drawing identities rather than retaining unrelated state.
     _itemOverrides.clear();
     _frozenItems.clear();
-    final known = <String>{for (final ExamQuestionOption option in options) option.id};
     for (final QuestionKind kind in ExamTheoryQuestion.kinds) {
-      _selected[kind] = <String>{
-        for (final String id in entry.selection[kind.name] ?? const <String>[])
-          if (known.contains(id)) id,
-      };
+      _selected[kind] = <String>{...entry.selection[kind.name] ?? const <String>[]};
       _customizedInstructions[kind] = false;
       _instructions[kind] = defaultTheoryInstruction(kind, _selected[kind]!.length);
       _degrees[kind] = defaultTheoryQuestionDegree;

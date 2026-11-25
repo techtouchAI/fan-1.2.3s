@@ -266,7 +266,8 @@ void main() {
     expect(loaded.single.id, 'valid');
     await repo.save(loaded);
     final rows = jsonDecode(prefs.getString(PrefsExamQuestionBankRepository.storageKey)!) as List;
-    expect(rows, contains(bad));
+    expect(rows.length, 2);
+    expect(rows.last, bad);
   });
 
   test('optional corrupt profile fields do not prevent startup', () async {
