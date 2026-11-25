@@ -18,6 +18,7 @@ import 'package:mirsam/presentation/screens/question_print_screen.dart';
 import 'package:mirsam/presentation/screens/quiz_picker_screen.dart';
 import 'package:mirsam/presentation/screens/quiz_screen.dart';
 import 'package:mirsam/presentation/screens/search_screen.dart';
+import 'package:mirsam/presentation/screens/saved_exams_screen.dart';
 import 'package:mirsam/presentation/screens/settings_screen.dart';
 import 'package:mirsam/presentation/screens/unit_screen.dart';
 
@@ -45,6 +46,7 @@ void main() {
     'quiz_picker': QuizPickerScreen(),
     'quiz': QuizScreen(unitId: 'g1-u1'),
     'search': SearchScreen(),
+    'saved_exams': SavedExamsScreen(),
     'settings': SettingsScreen(),
     'unit': UnitScreen(unitId: 'g1-u2'),
   };

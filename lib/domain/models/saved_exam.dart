@@ -32,7 +32,7 @@ class SavedExamPaper {
   Map<String, dynamic> get draft => jsonDecode(_encodedDraft) as Map<String, dynamic>;
   String get displayTitle => customTitle.trim().isNotEmpty
       ? customTitle
-      : '${draft['term'] == 'finalYear' ? 'امتحان آخر السنة' : 'ورقة أسئلة'} — ${draft['gradeLabel'] ?? ''}';
+      : '${draft['term'] == 'endOfYear' ? 'امتحان آخر السنة' : 'ورقة أسئلة'} — ${draft['gradeLabel'] ?? ''}';
 
   SavedExamPaper copyWith({
     Map<String, dynamic>? draft,

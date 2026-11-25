@@ -228,7 +228,7 @@ class _SavedExamCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'آخر حفظ تلقائي: ${formatSavedTimestamp(saved.updatedAt)}'
-                      ' • النسخة ${toArabicDigits(saved.revision)}',
+                      ' • النسخة ${toArabicDigits('${saved.revision}')}',
                       style: theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                     ),
                   ],

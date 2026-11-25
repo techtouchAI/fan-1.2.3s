@@ -52,7 +52,7 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
   List<List<String>> _paginate() {
     final pages = <List<String>>[];
     var page = <String>[];
-    var height = 0.0;
+    var height = ExamPreviewHeader.height;
     const available = pageHeight - margin * 2 - 32;
     double measure(String text) {
       final painter = TextPainter(
@@ -64,7 +64,7 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
       return h;
     }
 
-    for (final line in examPaperAsPlainText(widget.paper).split('\n')) {
+    for (final line in examPaperAsPlainText(widget.paper).split('\n').skip(9)) {
       var remaining = line;
       while (true) {
         final h = measure(remaining);
@@ -230,6 +230,7 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: <Widget>[
+                                  if (page == 0) ExamPreviewHeader(paper: widget.paper),
                                   for (final line in pages[page])
                                     Padding(
                                       padding: const EdgeInsets.only(bottom: 4),
@@ -255,6 +256,94 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The art paper's original three-column header and nine-row score table. This
+/// is intentionally not the Arabic subject's composition/grammar grade split.
+class ExamPreviewHeader extends StatelessWidget {
+  const ExamPreviewHeader({super.key, required this.paper});
+  static const double height = 370;
+  final ExamPaper paper;
+  @override
+  Widget build(BuildContext context) {
+    final info = paper.info;
+    const headerStyle = TextStyle(
+      fontFamily: 'Amiri',
+      color: Colors.black,
+      fontSize: 16,
+      height: 1.3,
+      fontWeight: FontWeight.bold,
+    );
+    Widget cell(String text) => Padding(
+      padding: const EdgeInsets.all(3),
+      child: Text(text, style: headerStyle, textAlign: TextAlign.center),
+    );
+    TableRow scoreRow(String text) =>
+        TableRow(children: <Widget>[cell(text), cell(''), cell(''), cell(''), cell('')]);
+    return SizedBox(
+      height: height,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          SizedBox(
+            height: 96,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(flex: 2693, child: cell('ادارة\n${info.school}')),
+                Expanded(
+                  flex: 5245,
+                  child: cell('${info.examTitleLine}\n${info.yearLine}\nالتربية الفنية'),
+                ),
+                Expanded(flex: 2977, child: cell('الاسم :\n${info.classLine}\nالرقم الامتحاني :')),
+              ],
+            ),
+          ),
+          Center(
+            child: SizedBox(
+              width: 500,
+              child: Column(
+                children: <Widget>[
+                  Table(
+                    border: TableBorder.all(color: Colors.black, width: 0.7),
+                    children: <TableRow>[
+                      TableRow(
+                        children: <Widget>[
+                          cell('رقم السؤال'),
+                          cell('الدرجة رقما'),
+                          cell('الدرجة كتابة'),
+                          cell('اسم المصحح'),
+                          cell('اسم المدقق'),
+                        ],
+                      ),
+                      scoreRow('س1'),
+                      scoreRow('س2'),
+                      scoreRow('س3'),
+                    ],
+                  ),
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(border: Border.all(color: Colors.black, width: 0.7)),
+                    child: cell('العملـــــي'),
+                  ),
+                  Table(
+                    border: TableBorder.all(color: Colors.black, width: 0.7),
+                    children: <TableRow>[
+                      scoreRow('س1'),
+                      scoreRow('س2'),
+                      scoreRow('س3'),
+                      scoreRow('المجموع'),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
     );
   }
 }

@@ -117,7 +117,13 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
           : app.library.unitsOf(
               app.savedExams.byId(widget.savedExamId!)?.gradeId ?? app.gradeId ?? '',
             ),
-      drawings: app.library.drawings,
+      drawings: widget.savedExamId == null
+          ? app.visibleDrawings
+          : app.library.drawings.where(
+              (drawing) =>
+                  app.library.unitById(drawing.unitId)?.sectionId ==
+                  app.savedExams.byId(widget.savedExamId!)?.gradeId,
+            ),
       gradeLabel: examGradeLabel(app.gradeTitle),
       profile: profile,
     );

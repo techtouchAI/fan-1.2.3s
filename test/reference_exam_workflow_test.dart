@@ -12,7 +12,6 @@ import 'package:mirsam/domain/models/library.dart';
 import 'package:mirsam/domain/models/saved_exam.dart';
 import 'package:mirsam/domain/models/progress.dart';
 import 'package:mirsam/domain/models/question_print_settings.dart';
-import 'package:mirsam/domain/services/exam_paper_formatter.dart';
 import 'package:mirsam/domain/services/question_print_plan.dart';
 import 'package:mirsam/presentation/screens/exam_composer_screen.dart';
 import 'package:mirsam/presentation/screens/quiz_picker_screen.dart';
@@ -229,12 +228,7 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(findFlexOverflows(tester), isEmpty);
-    expect(
-      find.text(
-        examPaperAsPlainText(state.buildPaperWith(const ExamPaperTypography())).split('\n').first,
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('ادارة\n${state.schoolName}'), findsOneWidget);
     state.dispose();
   });
 

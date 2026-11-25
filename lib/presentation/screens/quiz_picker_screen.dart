@@ -8,7 +8,7 @@ import '../../core/utils/arabic_text.dart';
 import '../../core/widgets/app_page.dart';
 import '../../core/widgets/section_header.dart';
 import '../../domain/models/library.dart';
-import '../../domain/services/exam_paper_formatter.dart';
+import '../../domain/models/exam_paper.dart';
 import '../state/app_state.dart';
 import '../widgets/text_scale_controls.dart';
 import '../navigation/app_routes.dart';
@@ -247,7 +247,7 @@ class _QuizPickerScreenState extends State<QuizPickerScreen> {
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Text(
-                        '${toArabicDigits(score.correct)}/${toArabicDigits(score.total)}',
+                        '${toArabicDigits('${score.correct}')}/${toArabicDigits('${score.total}')}',
                         style: theme.textTheme.labelMedium,
                       ),
                     ),
@@ -255,7 +255,7 @@ class _QuizPickerScreenState extends State<QuizPickerScreen> {
                 ),
                 title: Text(score.scopeLabel),
                 subtitle: Text(
-                  'نسبة الإتقان: ${toArabicDigits(((score.correct / score.total) * 100).round())}٪',
+                  'نسبة الإتقان: ${toArabicDigits('${((score.correct / score.total) * 100).round()}')}٪',
                 ),
               ),
             ),
@@ -283,7 +283,7 @@ class _QuizPickerScreenState extends State<QuizPickerScreen> {
           children: <Widget>[
             Expanded(
               child: Text(
-                'السؤال ${toArabicDigits(_currentIndex + 1)} من ${toArabicDigits(session.length)}',
+                'السؤال ${toArabicDigits('${_currentIndex + 1}')} من ${toArabicDigits('${session.length}')}',
                 style: theme.textTheme.labelLarge,
               ),
             ),

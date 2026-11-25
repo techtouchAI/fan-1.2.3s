@@ -1,9 +1,9 @@
 import 'dart:math';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
 import '../../data/local/saved_exam_store.dart';
-import 'dart:convert';
 import '../../domain/models/saved_exam.dart';
 
 /// The teacher's saved exam papers ("أسئلتي المحفوظة"), newest first.
@@ -26,6 +26,14 @@ class SavedExamLibrary extends ChangeNotifier {
 
   Future<void>? _pendingWrite;
   bool _dirty = false;
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   Object? _lastWriteError;
 
   List<SavedExamPaper> get papers => List<SavedExamPaper>.unmodifiable(_papers);
@@ -154,7 +162,7 @@ class SavedExamLibrary extends ChangeNotifier {
       }
     } finally {
       _pendingWrite = null;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     }
   }
 }
