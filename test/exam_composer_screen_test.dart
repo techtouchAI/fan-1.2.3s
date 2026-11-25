@@ -138,7 +138,7 @@ void main() {
     expect(fieldText(tester, 'exam-teacher'), isEmpty);
   });
 
-  testWidgets('pre-fills the saved profile and its typography', (tester) async {
+  testWidgets('pre-fills profile typography but uses the active grade', (tester) async {
     final repository = MemoryExamProfileRepository(
       const ExamProfile(
         schoolName: 'متوسطة الرافدين للبنين',
@@ -161,7 +161,7 @@ void main() {
 
     await tapKey(tester, 'exam-next');
     expect(fieldText(tester, 'exam-school'), 'متوسطة الرافدين للبنين');
-    expect(fieldText(tester, 'exam-grade'), 'الثاني المتوسط');
+    expect(fieldText(tester, 'exam-grade'), 'الأول المتوسط');
     expect(fieldText(tester, 'exam-section'), 'ب');
     expect(fieldText(tester, 'exam-teacher'), 'أ. علي حسن');
   });

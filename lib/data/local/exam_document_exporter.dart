@@ -10,9 +10,18 @@ import 'package:share_plus/share_plus.dart';
 import '../../domain/services/exam_paper_formatter.dart';
 import 'docx/exam_docx_builder.dart';
 
+enum ExamExportStatus { completed, handedOff, cancelled }
+
 /// Outcome of an export, reported to the teacher in a snack bar.
 class ExamExportResult {
-  const ExamExportResult({required this.message, this.path, this.shared = false});
+  const ExamExportResult({
+    required this.message,
+    this.path,
+    this.shared = false,
+    this.status = ExamExportStatus.completed,
+  });
+  final ExamExportStatus status;
+  bool get wasCancelled => status == ExamExportStatus.cancelled;
 
   final String message;
 
@@ -46,7 +55,8 @@ abstract final class ExamDocumentExporter {
         ),
       ],
     );
-    if (location == null) return const ExamExportResult(message: 'أُلغي الحفظ');
+    if (location == null)
+      return const ExamExportResult(message: 'أُلغي الحفظ', status: ExamExportStatus.cancelled);
     final path = location.path.toLowerCase().endsWith('.$extension')
         ? location.path
         : '${location.path}.$extension';
@@ -64,11 +74,16 @@ abstract final class ExamDocumentExporter {
       final directory = await getTemporaryDirectory();
       final file = File('${directory.path}${Platform.pathSeparator}$safeName');
       await file.writeAsBytes(bytes, flush: true);
-      await Share.shareXFiles(<XFile>[
+      final share = await Share.shareXFiles(<XFile>[
         XFile(file.path, mimeType: ExamDocxBuilder.mimeType),
       ], subject: safeName);
       return ExamExportResult(
-        message: 'تم تجهيز ملف الوورد: $safeName',
+        status: share.status == ShareResultStatus.dismissed
+            ? ExamExportStatus.cancelled
+            : ExamExportStatus.handedOff,
+        message: share.status == ShareResultStatus.dismissed
+            ? 'أُلغيت المشاركة؛ بقي الملف المؤقت جاهزاً'
+            : 'تم تجهيز ملف الوورد للمشاركة: $safeName',
         path: file.path,
         shared: true,
       );
@@ -100,7 +115,18 @@ abstract final class ExamDocumentExporter {
     final directory = await getTemporaryDirectory();
     final file = File('${directory.path}${Platform.pathSeparator}$safeName');
     await file.writeAsBytes(bytes, flush: true);
-    await Share.shareXFiles(<XFile>[XFile(file.path, mimeType: 'image/png')], subject: safeName);
-    return ExamExportResult(message: 'تم تجهيز الصورة للمشاركة', path: file.path, shared: true);
+    final share = await Share.shareXFiles(<XFile>[
+      XFile(file.path, mimeType: 'image/png'),
+    ], subject: safeName);
+    return ExamExportResult(
+      status: share.status == ShareResultStatus.dismissed
+          ? ExamExportStatus.cancelled
+          : ExamExportStatus.handedOff,
+      message: share.status == ShareResultStatus.dismissed
+          ? 'أُلغيت مشاركة الصورة'
+          : 'تم تجهيز الصورة للمشاركة',
+      path: file.path,
+      shared: true,
+    );
   }
 }

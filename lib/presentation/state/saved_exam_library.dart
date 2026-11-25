@@ -39,6 +39,13 @@ class SavedExamLibrary extends ChangeNotifier {
   List<SavedExamPaper> get papers => List<SavedExamPaper>.unmodifiable(_papers);
 
   bool get isEmpty => _papers.isEmpty;
+  bool get isSaving => _pendingWrite != null || _dirty;
+  bool get isDurable => !isSaving && _lastWriteError == null;
+  bool get isReadOnly => _store.isReadOnly;
+  List<String> get loadWarnings => _store.loadWarnings;
+  void _ensureWritable() {
+    if (isReadOnly) throw StateError('The original archive is protected from overwriting');
+  }
 
   /// The last persistence failure, cleared by the next successful write.
   Object? get lastWriteError => _lastWriteError;
@@ -55,6 +62,7 @@ class SavedExamLibrary extends ChangeNotifier {
   /// Creates a record (when [id] is null or unknown) or stores a new version
   /// of an existing one, and moves it to the top of the list.
   SavedExamPaper save(Map<String, dynamic> draft, {String? id, required String gradeId}) {
+    _ensureWritable();
     final existing = id == null ? null : byId(id);
     if (existing != null && jsonEncode(existing.draft) == jsonEncode(draft)) {
       return existing;
@@ -78,6 +86,7 @@ class SavedExamLibrary extends ChangeNotifier {
 
   /// Saves an independent copy, so the teacher can branch a finished paper.
   SavedExamPaper? duplicate(String id) {
+    _ensureWritable();
     final source = byId(id);
     if (source == null) {
       return null;
@@ -98,6 +107,7 @@ class SavedExamLibrary extends ChangeNotifier {
 
   /// Renames a paper; an empty [title] restores the header-derived name.
   bool rename(String id, String title) {
+    _ensureWritable();
     final index = _papers.indexWhere((p) => p.id == id);
     if (index < 0) {
       return false;
@@ -108,6 +118,7 @@ class SavedExamLibrary extends ChangeNotifier {
   }
 
   bool delete(String id) {
+    _ensureWritable();
     final before = _papers.length;
     _papers.removeWhere((p) => p.id == id);
     if (_papers.length == before) {
@@ -119,6 +130,12 @@ class SavedExamLibrary extends ChangeNotifier {
 
   /// Completes once every change made so far has been written.
   Future<void> flush() => _pendingWrite ?? Future<void>.value();
+
+  /// Explicit durability acknowledgement; [flush] remains API-compatible.
+  Future<bool> flushChecked() async {
+    await flush();
+    return isDurable && !isReadOnly;
+  }
 
   String _newId(DateTime now) {
     String candidate() =>
@@ -136,9 +153,9 @@ class SavedExamLibrary extends ChangeNotifier {
   }
 
   void _changed() {
-    notifyListeners();
     _dirty = true;
     _pendingWrite ??= _drainWrites();
+    notifyListeners();
   }
 
   Future<void> _drainWrites() async {

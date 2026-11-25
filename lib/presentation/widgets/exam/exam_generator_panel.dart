@@ -61,13 +61,13 @@ class _ExamGeneratorPanelState extends State<ExamGeneratorPanel> {
             label: const Text('توليد ورقة أسئلة جديدة'),
             onPressed: () async {
               final replace =
-                  widget.state.theoryItemCount == 0 ||
+                  (widget.state.theoryItemCount == 0 && widget.state.practicalCount == 0) ||
                   await showDialog<bool>(
                         context: context,
                         builder: (context) => AlertDialog(
                           title: const Text('استبدال الاختيار الحالي؟'),
                           content: const Text(
-                            'ستتغير اختيارات الأسئلة فقط. تبقى البيانات والخط والدرجات محفوظة.',
+                            'ستُستبدل الأسئلة النظرية والعملية وتعديلاتها المحلية. تبقى بيانات الترويسة والخط والدرجات محفوظة.',
                           ),
                           actions: <Widget>[
                             TextButton(

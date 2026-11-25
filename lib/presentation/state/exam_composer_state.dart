@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 import '../../domain/models/exam_paper.dart';
+import '../../domain/models/exam_draft_snapshot.dart';
 import '../../domain/models/exam_question_bank.dart';
 import '../../domain/models/library.dart';
 import '../../domain/repositories/exam_profile_repository.dart';
@@ -24,7 +25,7 @@ class ExamComposerState extends ChangeNotifier {
   }) : options = examQuestionOptions(units),
        drawings = examDrawingOptions(drawings),
        _now = now ?? DateTime.now() {
-    this.gradeLabel = profile.gradeLabel.trim().isNotEmpty ? profile.gradeLabel : gradeLabel;
+    this.gradeLabel = gradeLabel;
     schoolName = profile.schoolName;
     sectionName = profile.sectionName;
     teacherName = profile.teacherName;
@@ -300,11 +301,40 @@ class ExamComposerState extends ChangeNotifier {
   /// The items of one kind, in curriculum order (the order of the source file).
   List<ExamTheoryItem> selectedItems(QuestionKind kind) {
     final selection = _selected[kind] ?? const <String>{};
-    return <ExamTheoryItem>[
-      for (final ExamQuestionOption option in options)
-        if (option.question.kind == kind && selection.contains(option.id))
-          _itemOverrides[option.id] ?? ExamTheoryItem.fromQuestion(option.question, id: option.id),
-    ];
+    final items = <String, ExamTheoryItem>{
+      for (final item in _frozenItems.values)
+        if (item.kind == kind && selection.contains(item.id))
+          item.id: _itemOverrides[item.id] ?? item,
+      for (final option in options)
+        if (option.question.kind == kind &&
+            selection.contains(option.id) &&
+            !_frozenItems.containsKey(option.id))
+          option.id:
+              _itemOverrides[option.id] ??
+              ExamTheoryItem.fromQuestion(option.question, id: option.id),
+    };
+    return List<ExamTheoryItem>.unmodifiable(items.values);
+  }
+
+  /// Old v1 records cannot recover text that no longer exists. Keep the ids,
+  /// expose the loss, and block export until the teacher explicitly removes it.
+  Set<String> get unresolvedSourceIds {
+    return <String>{
+      for (final entry in _selected.entries)
+        for (final id in entry.value)
+          if (_frozenItems[id]?.kind != entry.key &&
+              !options.any((o) => o.id == id && o.question.kind == entry.key))
+            id,
+    };
+  }
+
+  final List<String> restorationWarnings = <String>[];
+  void discardUnresolvedItems() {
+    final missing = unresolvedSourceIds;
+    for (final ids in _selected.values) {
+      ids.removeAll(missing);
+    }
+    notifyListeners();
   }
 
   ExamTheoryQuestion theoryOf(QuestionKind kind) {
@@ -400,6 +430,7 @@ class ExamComposerState extends ChangeNotifier {
 
   /// A complete paper, or null while something is still missing.
   ExamPaper? get paper {
+    if (unresolvedSourceIds.isNotEmpty) return null;
     final current = typography;
     if (current == null) {
       return null;
@@ -410,6 +441,11 @@ class ExamComposerState extends ChangeNotifier {
 
   /// Everything that still prevents the export, ready for the bottom bar.
   List<String> get issues {
+    if (unresolvedSourceIds.isNotEmpty) {
+      return <String>[
+        'تعذّر استعادة نصوص ${unresolvedSourceIds.length} فقرة من مسودة قديمة؛ راجعها أو أزل المراجع المفقودة صراحةً.',
+      ];
+    }
     final current = typography;
     if (current == null) {
       // Report the spacing on its own so the bottom bar points at the field
@@ -427,10 +463,13 @@ class ExamComposerState extends ChangeNotifier {
   }
 
   // Editing is local to the draft: the bundled curriculum never changes.
+  final Map<String, ExamTheoryItem> _frozenItems = <String, ExamTheoryItem>{};
   final Map<String, ExamTheoryItem> _itemOverrides = <String, ExamTheoryItem>{};
 
   void editItem(ExamTheoryItem item) {
-    if (!options.any((option) => option.id == item.id && option.question.kind == item.kind)) return;
+    if (!options.any((option) => option.id == item.id && option.question.kind == item.kind) &&
+        _frozenItems[item.id]?.kind != item.kind)
+      return;
     _itemOverrides[item.id] = item;
     notifyListeners();
   }
@@ -449,6 +488,8 @@ class ExamComposerState extends ChangeNotifier {
   /// Random selection, but selected items always render in curriculum order.
   void generateBalancedExam({Set<String>? unitIds, Random? random, int perKind = 5}) {
     final rng = random ?? Random();
+    _itemOverrides.clear();
+    _frozenItems.clear();
     for (final kind in ExamTheoryQuestion.kinds) {
       final pool =
           optionsOf(
@@ -481,7 +522,8 @@ class ExamComposerState extends ChangeNotifier {
   /// Complete draft snapshot, including unfinished/invalid fields. Storing only
   /// [paper] would silently lose a teacher's work before the paper is complete.
   Map<String, dynamic> toDraft() => <String, dynamic>{
-    'version': 1,
+    'version': ExamDraftSnapshot.currentVersion,
+    if (restorationWarnings.isNotEmpty) 'restorationWarnings': List<String>.of(restorationWarnings),
     'schoolName': schoolName,
     'gradeLabel': gradeLabel,
     'sectionName': sectionName,
@@ -498,6 +540,20 @@ class ExamComposerState extends ChangeNotifier {
     'practicalDegree': practicalDegree,
     'theoryHeader': theoryHeader,
     'practicalHeader': practicalHeader,
+    'items': <Map<String, dynamic>>[
+      for (final item in <String, ExamTheoryItem>{
+        ..._frozenItems,
+        for (final kind in ExamTheoryQuestion.kinds)
+          for (final item in selectedItems(kind)) item.id: item,
+      }.values)
+        <String, dynamic>{
+          'id': item.id,
+          'kind': item.kind.name,
+          'prompt': item.prompt,
+          'options': List<String>.of(item.options),
+        },
+    ],
+    'unresolvedSourceIds': unresolvedSourceIds.toList(),
     'selection': <String, dynamic>{
       for (final kind in ExamTheoryQuestion.kinds) kind.name: selectionOf(kind).toList(),
     },
@@ -533,7 +589,31 @@ class ExamComposerState extends ChangeNotifier {
     ],
   };
 
-  void restoreDraft(Map<String, dynamic> draft) {
+  void restoreDraft(Map<String, dynamic> rawDraft) {
+    // Validate the complete nested document before mutating any state.
+    final snapshot = ExamDraftSnapshot.decode(rawDraft);
+    final draft = snapshot.toJson();
+    final frozen = <String, ExamTheoryItem>{};
+    for (final raw in (draft['items'] as List? ?? const <dynamic>[])) {
+      final item = raw as Map;
+      frozen[item['id'] as String] = ExamTheoryItem(
+        id: item['id'] as String,
+        kind: QuestionKind.values.firstWhere((v) => v.name == item['kind']),
+        prompt: item['prompt'] as String,
+        options: List<String>.unmodifiable(item['options'] as List? ?? const <String>[]),
+      );
+    }
+    _frozenItems
+      ..clear()
+      ..addAll(frozen);
+    restorationWarnings
+      ..clear()
+      ..addAll(List<String>.from(draft['restorationWarnings'] as List? ?? const []));
+    if (snapshot.version == 1) {
+      restorationWarnings.add(
+        'مسودة قديمة: استُعيدت النصوص المتاحة من المنهج الحالي؛ لم تكن النسخة القديمة تحفظ نصاً مستقلاً لكل سؤال.',
+      );
+    }
     String text(String key, String fallback) =>
         draft[key] is String ? draft[key] as String : fallback;
     int? number(String key, int? fallback) =>
@@ -558,10 +638,7 @@ class ExamComposerState extends ChangeNotifier {
     practicalHeader = text('practicalHeader', practicalHeader);
     for (final kind in ExamTheoryQuestion.kinds) {
       final ids = map('selection')[kind.name];
-      final known = optionsOf(kind).map((option) => option.id).toSet();
-      _selected[kind] = ids is List
-          ? ids.whereType<String>().where(known.contains).toSet()
-          : <String>{};
+      _selected[kind] = ids is List ? ids.whereType<String>().toSet() : <String>{};
       _instructions[kind] =
           map('instructions')[kind.name] as String? ??
           defaultTheoryInstruction(kind, _selected[kind]!.length);
@@ -572,6 +649,10 @@ class ExamComposerState extends ChangeNotifier {
                   ExamTheoryQuestion.defaultAnswerLineCount)
               .clamp(1, ExamTheoryQuestion.maxAnswerLineCount);
     }
+    practical = List<ExamPracticalQuestion>.generate(
+      practicalSlotCount,
+      (_) => const ExamPracticalQuestion(prompt: '', degree: defaultPracticalDegree),
+    );
     final slots = draft['practical'];
     if (slots is List) {
       for (var i = 0; i < practical.length && i < slots.length; i++) {
@@ -588,17 +669,32 @@ class ExamComposerState extends ChangeNotifier {
     final overrides = draft['overrides'];
     if (overrides is List) {
       for (final raw in overrides.whereType<Map>()) {
-        final id = raw['id'];
-        final option = options.where((v) => v.id == id).firstOrNull;
-        if (option != null) {
-          _itemOverrides[option.id] = ExamTheoryItem(
-            id: option.id,
-            kind: option.question.kind,
-            prompt: raw['prompt'] as String? ?? option.question.prompt,
-            options:
-                (raw['options'] as List?)?.whereType<String>().toList() ?? option.question.options,
-          );
-        }
+        final id = raw['id'] as String;
+        final kind = QuestionKind.values.firstWhere((v) => v.name == raw['kind']);
+        _itemOverrides[id] = ExamTheoryItem(
+          id: id,
+          kind: kind,
+          prompt: raw['prompt'] as String,
+          options: List<String>.unmodifiable(raw['options'] as List? ?? const <String>[]),
+        );
+      }
+    }
+    for (final option in options) {
+      if (isSelected(option.question.kind, option.id)) {
+        _frozenItems.putIfAbsent(
+          option.id,
+          () =>
+              _itemOverrides[option.id] ??
+              ExamTheoryItem.fromQuestion(option.question, id: option.id),
+        );
+      }
+    }
+    for (final item in _itemOverrides.values) {
+      _frozenItems.putIfAbsent(item.id, () => item);
+    }
+    for (final kind in ExamTheoryQuestion.kinds) {
+      for (final item in selectedItems(kind)) {
+        _frozenItems.putIfAbsent(item.id, () => item);
       }
     }
     notifyListeners();
@@ -619,6 +715,7 @@ class ExamComposerState extends ChangeNotifier {
       id: id,
       title: title,
       savedAt: savedAt ?? DateTime.now(),
+      contentSnapshot: ExamDraftSnapshot.decode(toDraft()),
       selection: <String, List<String>>{
         for (final QuestionKind kind in ExamTheoryQuestion.kinds)
           if (selectionOf(kind).isNotEmpty) kind.name: selectionOf(kind).toList(growable: false),
@@ -637,24 +734,54 @@ class ExamComposerState extends ChangeNotifier {
   /// Restores a stored group; ids that no longer exist in the curriculum are
   /// ignored instead of breaking the paper.
   void applyBankEntry(ExamQuestionBankEntry entry) {
+    if (entry.contentDraft != null) {
+      final merged = toDraft();
+      final content = entry.contentDraft!;
+      final known = options.map((option) => option.id).toSet();
+      final selected = content['selection'] as Map? ?? const {};
+      if (selected.values.expand((ids) => ids as List).any((id) => !known.contains(id))) {
+        throw const FormatException(
+          'هذه المجموعة تتضمن أسئلة من صف آخر أو منهج غير متاح؛ لم تتغير الورقة.',
+        );
+      }
+      for (final key in <String>[
+        'items',
+        'selection',
+        'unresolvedSourceIds',
+        'instructions',
+        'degrees',
+        'customized',
+        'answerLines',
+        'practical',
+        'overrides',
+        'theoryDegree',
+        'practicalDegree',
+        'theoryHeader',
+        'practicalHeader',
+      ]) {
+        if (content.containsKey(key)) merged[key] = content[key];
+      }
+      restoreDraft(merged);
+      return;
+    }
+    // V1 groups are selection templates, not snapshots: clear previous local
+    // edits and drawing identities rather than retaining unrelated state.
+    _itemOverrides.clear();
+    _frozenItems.clear();
     final known = <String>{for (final ExamQuestionOption option in options) option.id};
     for (final QuestionKind kind in ExamTheoryQuestion.kinds) {
       _selected[kind] = <String>{
         for (final String id in entry.selection[kind.name] ?? const <String>[])
           if (known.contains(id)) id,
       };
-      if (!isInstructionCustomized(kind)) {
-        _instructions[kind] = defaultTheoryInstruction(kind, _selected[kind]!.length);
-      }
+      _customizedInstructions[kind] = false;
+      _instructions[kind] = defaultTheoryInstruction(kind, _selected[kind]!.length);
+      _degrees[kind] = defaultTheoryQuestionDegree;
+      _answerLines[kind] = ExamTheoryQuestion.defaultAnswerLineCount;
     }
     for (var i = 0; i < practical.length; i++) {
       final prompt = i < entry.practicalPrompts.length ? entry.practicalPrompts[i] : '';
-      practical[i] = ExamPracticalQuestion(
-        prompt: prompt,
-        degree: practical[i].degree,
-        drawingId: practical[i].drawingId,
-        drawingTitle: practical[i].drawingTitle,
-      );
+      practical[i] = ExamPracticalQuestion(prompt: prompt, degree: practical[i].degree);
     }
     theoryDegree = entry.theoryDegree;
     practicalDegree = entry.practicalDegree;

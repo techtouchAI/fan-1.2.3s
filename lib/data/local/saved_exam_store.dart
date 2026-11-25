@@ -1,93 +1,124 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/models/saved_exam.dart';
 
-/// Local persistence for the teacher's saved exam papers.
-abstract class SavedExamStore {
-  List<SavedExamPaper> read();
-  Future<void> write(List<SavedExamPaper> papers);
-
-  static Future<SavedExamStore> open() async {
-    final prefs = await SharedPreferences.getInstance();
-    return SharedPrefsSavedExamStore(prefs);
-  }
-
-  /// Serialises [papers] as a versioned JSON envelope.
-  static String encode(List<SavedExamPaper> papers) => jsonEncode(<String, dynamic>{
-    'version': 1,
-    'papers': papers.map((p) => p.toJson()).toList(growable: false),
+/// A load result retains unreadable records. A later successful edit must not
+/// erase damaged or future-format work belonging to the teacher.
+class SavedExamArchive {
+  SavedExamArchive({
+    required this.papers,
+    this.recoveryRecords = const [],
+    this.warnings = const [],
+    this.readOnly = false,
   });
+  final List<SavedExamPaper> papers;
+  final List<dynamic> recoveryRecords;
+  final List<String> warnings;
+  final bool readOnly;
 
-  /// Decodes [encode]'s output. A damaged record is skipped on its own, so one
-  /// bad entry never costs the teacher every other saved paper.
-  static List<SavedExamPaper> decode(String? raw) {
-    if (raw == null || raw.isEmpty) {
-      return const <SavedExamPaper>[];
-    }
+  factory SavedExamArchive.decode(Object? raw) {
+    if (raw == null || raw == '') return SavedExamArchive(papers: const []);
+    if (raw is! String)
+      return SavedExamArchive(
+        papers: const [],
+        readOnly: true,
+        warnings: const ['نوع مخزن الأوراق غير صالح؛ حُفظ الأصل ولم يُستبدل.'],
+      );
     Object? root;
     try {
       root = jsonDecode(raw);
-    } on FormatException catch (error) {
-      debugPrint('Saved exams could not be decoded: $error');
-      return const <SavedExamPaper>[];
+    } on FormatException {
+      return SavedExamArchive(
+        papers: const [],
+        readOnly: true,
+        warnings: const ['ملف الأوراق غير قابل للقراءة؛ حُفظ الأصل ولم يُستبدل.'],
+      );
     }
-    final entries = root is Map<String, dynamic> ? root['papers'] : null;
-    if (entries is! List<dynamic>) {
-      return const <SavedExamPaper>[];
+    if (root is! Map<String, dynamic> ||
+        root['papers'] is! List ||
+        (root['version'] != null && root['version'] != 1)) {
+      return SavedExamArchive(
+        papers: const [],
+        readOnly: true,
+        warnings: const ['إصدار مخزن الأوراق غير مدعوم؛ لم تتغير البيانات الأصلية.'],
+      );
     }
     final papers = <SavedExamPaper>[];
-    final seenIds = <String>{};
-    for (final entry in entries) {
+    final recovery = <dynamic>[
+      if (root['recoveryRecords'] is List) ...root['recoveryRecords'] as List,
+    ];
+    final ids = <String>{};
+    for (final row in root['papers'] as List) {
       try {
-        final paper = SavedExamPaper.fromJson(entry as Map<String, dynamic>);
-        if (seenIds.add(paper.id)) {
-          papers.add(paper);
+        final paper = SavedExamPaper.fromJson(Map<String, dynamic>.from(row as Map));
+        if (paper.id.isEmpty || paper.revision < 1 || !ids.add(paper.id)) {
+          throw const FormatException('Invalid or duplicate record identity');
         }
-      } catch (error) {
-        // Skipped deliberately; see the method documentation.
-        debugPrint('Skipped a damaged saved exam: $error');
+        papers.add(paper);
+      } on FormatException {
+        recovery.add(row);
+      } on TypeError {
+        recovery.add(row);
       }
     }
-    return List<SavedExamPaper>.unmodifiable(papers);
+    return SavedExamArchive(
+      papers: List.unmodifiable(papers),
+      recoveryRecords: List.unmodifiable(recovery),
+      warnings: recovery.isEmpty
+          ? const []
+          : ['حُفظت ${recovery.length} سجلات غير قابلة للفتح في قسم استعادة منفصل؛ لم تُحذف.'],
+    );
   }
+
+  String encode(List<SavedExamPaper> papers) => jsonEncode(<String, dynamic>{
+    'version': 1,
+    'papers': papers.map((p) => p.toJson()).toList(),
+    if (recoveryRecords.isNotEmpty) 'recoveryRecords': recoveryRecords,
+  });
 }
 
-class SharedPrefsSavedExamStore implements SavedExamStore {
+abstract class SavedExamStore {
+  List<SavedExamPaper> read();
+  Future<void> write(List<SavedExamPaper> papers);
+  List<String> get loadWarnings => const [];
+  bool get isReadOnly => false;
+
+  static Future<SavedExamStore> open() async =>
+      SharedPrefsSavedExamStore(await SharedPreferences.getInstance());
+  static String encode(List<SavedExamPaper> papers) =>
+      SavedExamArchive(papers: const []).encode(papers);
+  static List<SavedExamPaper> decode(String? raw) => SavedExamArchive.decode(raw).papers;
+}
+
+class SharedPrefsSavedExamStore extends SavedExamStore {
   SharedPrefsSavedExamStore(this._prefs);
-
   static const String storageKey = 'mirsam.saved-exams.v1';
-
   final SharedPreferences _prefs;
-
+  SavedExamArchive get _archive => SavedExamArchive.decode(_prefs.get(storageKey));
   @override
-  List<SavedExamPaper> read() => SavedExamStore.decode(_prefs.getString(storageKey));
-
+  List<String> get loadWarnings => _archive.warnings;
+  @override
+  bool get isReadOnly => _archive.readOnly;
+  @override
+  List<SavedExamPaper> read() => _archive.papers;
   @override
   Future<void> write(List<SavedExamPaper> papers) async {
-    final saved = await _prefs.setString(storageKey, SavedExamStore.encode(papers));
-    if (!saved) {
-      throw StateError('Saved exams could not be written to local storage.');
+    if (isReadOnly) throw StateError('The original archive is protected from overwriting');
+    if (!await _prefs.setString(storageKey, _archive.encode(papers))) {
+      throw StateError('Saved exams could not be written to local storage');
     }
   }
 }
 
-/// In-memory store used by tests and as the default for [AppState].
-///
-/// It round-trips through JSON like the real store, so tests exercise the
-/// serialisation that ships.
-class MemorySavedExamStore implements SavedExamStore {
-  MemorySavedExamStore([List<SavedExamPaper> initial = const <SavedExamPaper>[]])
+class MemorySavedExamStore extends SavedExamStore {
+  MemorySavedExamStore([List<SavedExamPaper> initial = const []])
     : _raw = SavedExamStore.encode(initial);
-
   String _raw;
   int writeCount = 0;
-
   @override
   List<SavedExamPaper> read() => SavedExamStore.decode(_raw);
-
   @override
   Future<void> write(List<SavedExamPaper> papers) async {
     writeCount++;

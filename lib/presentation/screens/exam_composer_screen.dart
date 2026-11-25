@@ -7,7 +7,6 @@ import '../../core/utils/arabic_text.dart';
 import '../../core/widgets/app_page.dart';
 import '../../data/local/docx/exam_docx_builder.dart';
 import '../../data/local/exam_document_exporter.dart';
-import '../../data/local/prefs_exam_profile_repository.dart';
 import '../../data/local/prefs_exam_question_bank_repository.dart';
 import '../../domain/models/exam_question_bank.dart';
 import '../../domain/repositories/exam_question_bank_repository.dart';
@@ -65,7 +64,6 @@ class ExamComposerScreen extends StatefulWidget {
 }
 
 class _ExamComposerScreenState extends State<ExamComposerScreen> {
-  late final ExamProfileRepository _profiles;
   ExamComposerState? _composer;
   ExamComposerControllers? _controllers;
   int _step = -1;
@@ -83,7 +81,6 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
   void initState() {
     super.initState();
     _step = widget.initialSection;
-    _profiles = widget.profileRepository ?? const PrefsExamProfileRepository();
     _bank = widget.questionBankRepository ?? const PrefsExamQuestionBankRepository();
     _bootstrap();
   }
@@ -99,7 +96,9 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
   Future<void> _bootstrap() async {
     var profile = const ExamProfile();
     try {
-      profile = await _profiles.load();
+      profile = widget.profileRepository != null
+          ? await widget.profileRepository!.load()
+          : AppScope.read(context).teacherProfile;
     } catch (error, stackTrace) {
       debugPrint('Exam profile loading failed: $error\n$stackTrace');
     }
@@ -146,6 +145,7 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
     final composer = _composer;
     final library = _library;
     if (composer == null || library == null) return;
+    if (library.isReadOnly) return;
     final saved = library.save(composer.toDraft(), id: _savedId, gradeId: _gradeId);
     _savedId = saved.id;
   }
@@ -225,7 +225,12 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
     if (chosen == null || !mounted || composer == null || controllers == null) {
       return;
     }
-    composer.applyBankEntry(chosen);
+    try {
+      composer.applyBankEntry(chosen);
+    } on FormatException catch (error) {
+      _showMessage(error.message.toString());
+      return;
+    }
     controllers.syncFrom(composer);
     _showMessage('استُرجعت المجموعة المحفوظة.');
   }
@@ -237,12 +242,22 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
       return;
     }
     final exporter = widget.exportDocument ?? ExamDocumentExporter.export;
+    final app = AppScope.read(context);
+    final profile = composer.toProfile();
     _autosave();
     setState(() => _exporting = true);
     try {
       final Uint8List bytes = ExamDocxBuilder.build(paper);
       final ExamExportResult result = await exporter(bytes, examPaperFileName(paper));
-      await _profiles.save(composer.toProfile());
+      if (!result.wasCancelled) {
+        try {
+          await app.updateTeacherProfile(profile, repository: widget.profileRepository);
+        } catch (error, stack) {
+          debugPrint('Profile persistence failed after export: $error\n$stack');
+          _showMessage('${result.message}؛ لكن تعذّر حفظ بيانات المدرس للورقة التالية.');
+          return;
+        }
+      }
       if (!mounted) {
         return;
       }
@@ -288,12 +303,16 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
               builder: (context, _) => IconButton(
                 tooltip: _library!.lastWriteError != null
                     ? 'تعذّر الحفظ؛ اضغط لإعادة المحاولة'
+                    : _library!.isSaving
+                    ? 'جارٍ حفظ آخر تعديل على الجهاز'
                     : _savedId == null
                     ? 'تُحفظ الورقة تلقائياً عند أول تعديل'
                     : 'تم حفظ آخر تعديل تلقائياً',
                 icon: Icon(
                   _library!.lastWriteError != null
                       ? Icons.cloud_off
+                      : _library!.isSaving
+                      ? Icons.cloud_upload_outlined
                       : _savedId == null
                       ? Icons.cloud_outlined
                       : Icons.cloud_done_outlined,
@@ -313,6 +332,40 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
               listenable: composer,
               builder: (BuildContext context, Widget? child) => Column(
                 children: <Widget>[
+                  for (final warning in <String>[
+                    ...?_library?.loadWarnings,
+                    ...composer.restorationWarnings,
+                  ])
+                    Padding(padding: const EdgeInsets.all(8), child: Text(warning)),
+                  if (composer.unresolvedSourceIds.isNotEmpty)
+                    ListTile(
+                      title: Text('فقرات مفقودة: ${composer.unresolvedSourceIds.join('، ')}'),
+                      trailing: TextButton(
+                        onPressed: () async {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('إزالة المراجع المفقودة؟'),
+                              content: const Text(
+                                'لا يمكن استعادة نصها من هذه النسخة القديمة. سيحذف هذا الإجراء مراجعها فقط من الورقة الحالية.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, false),
+                                  child: const Text('إلغاء'),
+                                ),
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text('إزالة'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed == true && mounted) composer.discardUnresolvedItems();
+                        },
+                        child: const Text('مراجعة وإزالة'),
+                      ),
+                    ),
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.sm),
                     color: Theme.of(context).colorScheme.surface,

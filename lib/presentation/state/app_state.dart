@@ -47,10 +47,15 @@ class AppState extends ChangeNotifier {
 
   late final ExamProfileRepository _profileRepository;
   late ExamProfile teacherProfile;
-  Future<void> updateTeacherProfile(ExamProfile profile) async {
-    await _profileRepository.save(profile);
-    teacherProfile = profile;
-    notifyListeners();
+  Future<void> _profileWrite = Future<void>.value();
+  Future<void> updateTeacherProfile(ExamProfile profile, {ExamProfileRepository? repository}) {
+    final next = _profileWrite.then((_) async {
+      await (repository ?? _profileRepository).save(profile);
+      teacherProfile = profile;
+      notifyListeners();
+    });
+    _profileWrite = next.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    return next;
   }
 
   late final SavedExamLibrary savedExams;

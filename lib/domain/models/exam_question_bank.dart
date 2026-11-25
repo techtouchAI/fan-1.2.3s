@@ -3,17 +3,18 @@
 library;
 
 import 'exam_paper.dart';
+import 'exam_draft_snapshot.dart';
 
 /// Everything needed to restore a saved selection.
 ///
-/// The questions themselves are content of the curriculum, so only their ids
-/// are kept: the bank stays small and always shows the current wording of the
-/// source file instead of a stale copy.
+/// New groups contain a validated content snapshot including local edits and
+/// drawing metadata. Legacy id-only groups remain readable as templates.
 class ExamQuestionBankEntry {
   const ExamQuestionBankEntry({
     required this.id,
     required this.title,
     required this.savedAt,
+    this.contentSnapshot,
     this.selection = const <String, List<String>>{},
     this.practicalPrompts = const <String>[],
     this.theoryDegree = ExamQuestionBankEntry.defaultTheoryDegree,
@@ -31,6 +32,8 @@ class ExamQuestionBankEntry {
   /// What the teacher sees in the list, e.g. the grade and the date.
   final String title;
   final DateTime savedAt;
+  final ExamDraftSnapshot? contentSnapshot;
+  Map<String, dynamic>? get contentDraft => contentSnapshot?.toJson();
 
   /// Selected option ids per question kind (`trueFalse`, `choice`, `open`).
   final Map<String, List<String>> selection;
@@ -51,6 +54,7 @@ class ExamQuestionBankEntry {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      if (contentSnapshot != null) 'contentDraft': contentSnapshot!.toJson(),
       'id': id,
       'title': title,
       'savedAt': savedAt.toIso8601String(),
@@ -67,6 +71,13 @@ class ExamQuestionBankEntry {
   }
 
   factory ExamQuestionBankEntry.fromJson(Map<String, dynamic> json) {
+    if (_stringOf(json['id']).isEmpty) throw const FormatException('Missing group identity');
+    for (final key in <String>['theoryDegree', 'practicalDegree']) {
+      if (json[key] != null && json[key] is! num) throw FormatException('Invalid $key');
+    }
+    if (json['practicalPrompts'] != null && json['practicalPrompts'] is! List) {
+      throw const FormatException('Invalid practical prompts');
+    }
     final selection = <String, List<String>>{};
     final rawSelection = json['selection'];
     if (rawSelection is Map) {
@@ -84,12 +95,16 @@ class ExamQuestionBankEntry {
     return ExamQuestionBankEntry(
       // A hand-edited or older document may carry a number here; the entry is
       // still usable, so the value is read leniently instead of throwing.
+      contentSnapshot: json['contentDraft'] == null
+          ? null
+          : ExamDraftSnapshot.decode(Map<String, dynamic>.from(json['contentDraft'] as Map)),
       id: _stringOf(json['id']),
       title: _stringOf(json['title']),
       savedAt: DateTime.tryParse('${json['savedAt'] ?? ''}') ?? DateTime.now(),
       selection: selection,
       practicalPrompts: <String>[
-        for (final dynamic prompt in (json['practicalPrompts'] as List<dynamic>? ?? const <dynamic>[]))
+        for (final dynamic prompt
+            in (json['practicalPrompts'] as List<dynamic>? ?? const <dynamic>[]))
           if (prompt is String) prompt,
       ],
       theoryDegree: (json['theoryDegree'] as num?)?.toInt() ?? defaultTheoryDegree,

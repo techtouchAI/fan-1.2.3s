@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'exam_draft_snapshot.dart';
 
 /// A versioned, deep-copied draft. Incomplete forms are saved as well as papers.
 class SavedExamPaper {
@@ -10,7 +11,7 @@ class SavedExamPaper {
     required this.updatedAt,
     this.customTitle = '',
     this.revision = 1,
-  }) : _encodedDraft = jsonEncode(draft);
+  }) : _encodedDraft = jsonEncode(ExamDraftSnapshot.decode(draft).toJson());
 
   factory SavedExamPaper.fromJson(Map<String, dynamic> json) => SavedExamPaper(
     id: json['id'] as String,

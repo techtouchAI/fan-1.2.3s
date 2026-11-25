@@ -39,11 +39,12 @@ class SavedExamsScreen extends StatelessWidget {
               .where((paper) => paper.gradeId == AppScope.of(context).gradeId)
               .toList();
           if (papers.isEmpty) {
-            return const EmptyState(
+            return EmptyState(
               icon: Icons.inventory_2_outlined,
               title: 'لا توجد أسئلة محفوظة بعد',
-              message:
-                  'كل ورقة أسئلة تنشئها أو تعدّلها في مولّد الأسئلة تُحفظ هنا تلقائياً مع آخر تعديل.',
+              message: library.loadWarnings.isNotEmpty
+                  ? library.loadWarnings.join('\n')
+                  : 'كل ورقة أسئلة تنشئها أو تعدّلها في مولّد الأسئلة تُحفظ هنا تلقائياً مع آخر تعديل.',
             );
           }
           return ListView.separated(
@@ -84,6 +85,14 @@ class SavedExamsScreen extends StatelessWidget {
     _SavedExamAction action,
   ) async {
     final messenger = ScaffoldMessenger.of(context);
+    if (library.isReadOnly &&
+        action != _SavedExamAction.open &&
+        action != _SavedExamAction.export) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('المخزن محمي من التغيير للحفاظ على البيانات الأصلية.')),
+      );
+      return;
+    }
     switch (action) {
       case _SavedExamAction.open:
         _openComposer(context, saved.id);
