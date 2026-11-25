@@ -1,5 +1,4 @@
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -8,13 +7,25 @@ import '../../../core/theme/dimens.dart';
 import '../../../data/local/exam_document_exporter.dart';
 import '../../../domain/models/exam_paper.dart';
 import '../../../domain/services/exam_paper_formatter.dart';
+import '../../state/exam_preview_controller.dart';
+import '../../services/exam_page_image_capture.dart';
 
 /// A paginated A4 reading surface. The source/ordering is the same formatter as
 /// DOCX. Native Word fonts may substitute on mobile; no material is truncated.
 class ExamLivePreview extends StatefulWidget {
-  const ExamLivePreview({super.key, required this.paper, this.exportImage});
+  const ExamLivePreview({
+    super.key,
+    required this.paper,
+    this.exportImage,
+    this.shareImage,
+    this.controller,
+    this.showFullscreenButton = true,
+  });
   final ExamPaper paper;
   final ExamDocumentExport? exportImage;
+  final ExamDocumentExport? shareImage;
+  final ExamPreviewController? controller;
+  final bool showFullscreenButton;
   @override
   State<ExamLivePreview> createState() => _ExamLivePreviewState();
 }
@@ -24,20 +35,51 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
   static const double pageHeight = 1123;
   static const double margin = 48;
   final _boundary = GlobalKey();
-  final _transform = TransformationController();
-  int _page = 0;
-  double _zoom = 1;
+  late ExamPreviewController _controller;
+  late bool _ownsController;
+  Size _viewport = Size.zero;
+  int _pageCount = 1;
+  int _renderedPage = 0;
   bool _exporting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _attachController();
+  }
+
+  void _attachController() {
+    _ownsController = widget.controller == null;
+    _controller = widget.controller ?? ExamPreviewController();
+    _controller.addListener(_onViewChanged);
+  }
+
+  void _onViewChanged() {
+    if (mounted && _controller.visiblePage(_pageCount) != _renderedPage) setState(() {});
+  }
 
   @override
   void didUpdateWidget(covariant ExamLivePreview oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.paper != widget.paper) _page = 0;
+    if (oldWidget.controller != widget.controller) {
+      _controller.removeListener(_onViewChanged);
+      if (_ownsController) _controller.dispose();
+      _attachController();
+    }
+    // Paper edits retain the current page; clamp it only after the new page
+    // count is rendered, without notifying sibling views during their build.
+    final active = _controller;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && identical(active, _controller)) {
+        active.goToPage(active.visiblePage(_pageCount), pageCount: _pageCount);
+      }
+    });
   }
 
   @override
   void dispose() {
-    _transform.dispose();
+    _controller.removeListener(_onViewChanged);
+    if (_ownsController) _controller.dispose();
     super.dispose();
   }
 
@@ -106,45 +148,72 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
     return pages.isEmpty ? <List<String>>[<String>[]] : pages;
   }
 
-  Future<void> _exportPng() async {
-    if (_exporting) return;
-    setState(() => _exporting = true);
-    ui.Image? image;
+  Future<void> _sharePng(Uint8List bytes, String name) async {
     try {
-      await WidgetsBinding.instance.endOfFrame;
-      final boundary = _boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-      image = await boundary.toImage(pixelRatio: 2);
-      final data = await image.toByteData(format: ui.ImageByteFormat.png);
-      if (data == null) throw StateError('PNG encoding failed');
-      final Uint8List bytes = data.buffer.asUint8List();
-      final name = examPaperFileName(
-        widget.paper,
-      ).replaceFirst(RegExp(r'\.docx$'), '-${_page + 1}.png');
-      final result = await (widget.exportImage ?? ExamDocumentExporter.exportImage)(bytes, name);
+      final result = await (widget.shareImage ?? ExamDocumentExporter.shareImage)(bytes, name);
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result.message)));
     } catch (error) {
       if (mounted)
         ScaffoldMessenger.of(
           context,
+        ).showSnackBar(SnackBar(content: Text('تعذّرت مشاركة الصورة: $error')));
+    }
+  }
+
+  Future<void> _exportPng() async {
+    if (_exporting) return;
+    // Freeze the page number and file name before asynchronous rendering.
+    final page = _controller.visiblePage(_pageCount);
+    final name = examPaperFileName(
+      widget.paper,
+    ).replaceFirst(RegExp(r'\.docx$'), '-${page + 1}.png');
+    setState(() => _exporting = true);
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final boundary = _boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      final captured = await const ExamPageImageCapture().capture(
+        logicalSize: boundary.size,
+        render: (ratio) => boundary.toImage(pixelRatio: ratio),
+      );
+      final result = await (widget.exportImage ?? ExamDocumentExporter.exportImage)(
+        captured.bytes,
+        name,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message),
+          action: !result.wasCancelled && !result.shared
+              ? SnackBarAction(
+                  label: 'مشاركة',
+                  onPressed: () {
+                    if (mounted) _sharePng(captured.bytes, name);
+                  },
+                )
+              : null,
+        ),
+      );
+    } catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
         ).showSnackBar(SnackBar(content: Text('تعذّر تصدير الصورة: $error')));
     } finally {
-      image?.dispose();
       if (mounted) setState(() => _exporting = false);
     }
   }
 
-  void _setZoom(double value) {
-    setState(() {
-      _zoom = value.clamp(0.4, 6);
-      _transform.value = Matrix4.diagonal3Values(_zoom, _zoom, 1);
-    });
-  }
+  void _setZoom(double value) =>
+      _controller.setZoom(value, focalPoint: _viewport.center(Offset.zero));
 
   @override
   Widget build(BuildContext context) {
     final pages = _paginate();
-    final page = _page.clamp(0, pages.length - 1);
+    _pageCount = pages.length;
+    final page = _controller.visiblePage(_pageCount);
+    _renderedPage = page;
     return Column(
       children: <Widget>[
         Padding(
@@ -156,27 +225,42 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
             children: <Widget>[
               IconButton(
                 tooltip: 'تصغير المعاينة',
-                onPressed: () => _setZoom(_zoom / 1.25),
+                onPressed: () => _setZoom(_controller.zoom / 1.25),
                 icon: const Icon(Icons.zoom_out),
               ),
               IconButton(
                 tooltip: 'تكبير المعاينة',
-                onPressed: () => _setZoom(_zoom * 1.25),
+                onPressed: () => _setZoom(_controller.zoom * 1.25),
                 icon: const Icon(Icons.zoom_in),
               ),
-              TextButton(onPressed: () => _setZoom(1), child: const Text('ملاءمة العرض')),
-              IconButton(
-                tooltip: 'معاينة ملء الشاشة',
-                icon: const Icon(Icons.fullscreen),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => Scaffold(
-                      appBar: AppBar(title: const Text('معاينة الورقة الرسمية')),
-                      body: ExamLivePreview(paper: widget.paper, exportImage: widget.exportImage),
-                    ),
-                  ),
+              TextButton(
+                onPressed: () => _controller.fitWidth(
+                  viewport: _viewport,
+                  page: const Size(pageWidth, pageHeight),
                 ),
+                child: const Text('ملاءمة العرض'),
               ),
+              if (widget.showFullscreenButton)
+                IconButton(
+                  tooltip: 'معاينة ملء الشاشة',
+                  icon: const Icon(Icons.fullscreen),
+                  onPressed: _exporting
+                      ? null
+                      : () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => Scaffold(
+                              appBar: AppBar(title: const Text('معاينة الورقة الرسمية')),
+                              body: ExamLivePreview(
+                                paper: widget.paper,
+                                exportImage: widget.exportImage,
+                                shareImage: widget.shareImage,
+                                controller: _controller,
+                                showFullscreenButton: false,
+                              ),
+                            ),
+                          ),
+                        ),
+                ),
               OutlinedButton.icon(
                 key: const ValueKey<String>('export-exam-image'),
                 onPressed: _exporting ? null : _exportPng,
@@ -186,13 +270,17 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
               if (pages.length > 1) ...<Widget>[
                 IconButton(
                   tooltip: 'الصفحة السابقة',
-                  onPressed: page > 0 ? () => setState(() => _page--) : null,
+                  onPressed: !_exporting && page > 0
+                      ? () => _controller.goToPage(page - 1, pageCount: _pageCount)
+                      : null,
                   icon: const Icon(Icons.chevron_right),
                 ),
                 Text('${page + 1} / ${pages.length}'),
                 IconButton(
                   tooltip: 'الصفحة التالية',
-                  onPressed: page + 1 < pages.length ? () => setState(() => _page++) : null,
+                  onPressed: !_exporting && page + 1 < pages.length
+                      ? () => _controller.goToPage(page + 1, pageCount: _pageCount)
+                      : null,
                   icon: const Icon(Icons.chevron_left),
                 ),
               ],
@@ -208,43 +296,46 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
         ),
         Expanded(
           child: LayoutBuilder(
-            builder: (context, constraints) => InteractiveViewer(
-              transformationController: _transform,
-              minScale: 0.4,
-              maxScale: 6,
-              child: Center(
-                child: SizedBox(
-                  width: constraints.maxWidth.clamp(0, pageWidth),
-                  child: FittedBox(
-                    fit: BoxFit.contain,
-                    child: RepaintBoundary(
-                      key: _boundary,
-                      child: MediaQuery.withNoTextScaling(
-                        child: Directionality(
-                          textDirection: TextDirection.rtl,
-                          child: Container(
-                            width: pageWidth,
-                            height: pageHeight,
-                            padding: const EdgeInsets.all(margin),
-                            color: Colors.white,
-                            child: DefaultTextStyle(
-                              style: _style,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: <Widget>[
-                                  if (page == 0) ExamPreviewHeader(paper: widget.paper),
-                                  for (final line in pages[page])
-                                    Padding(
-                                      padding: const EdgeInsets.only(bottom: 4),
-                                      child: Text(line.isEmpty ? ' ' : line),
+            builder: (context, constraints) {
+              _viewport = constraints.biggest;
+              return InteractiveViewer(
+                transformationController: _controller.transformation,
+                minScale: ExamPreviewController.minZoom,
+                maxScale: ExamPreviewController.maxZoom,
+                child: Center(
+                  child: SizedBox(
+                    width: constraints.maxWidth.clamp(0, pageWidth),
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: RepaintBoundary(
+                        key: _boundary,
+                        child: MediaQuery.withNoTextScaling(
+                          child: Directionality(
+                            textDirection: TextDirection.rtl,
+                            child: Container(
+                              width: pageWidth,
+                              height: pageHeight,
+                              padding: const EdgeInsets.all(margin),
+                              color: Colors.white,
+                              child: DefaultTextStyle(
+                                style: _style,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: <Widget>[
+                                    if (page == 0) ExamPreviewHeader(paper: widget.paper),
+                                    for (final line in pages[page])
+                                      Padding(
+                                        padding: const EdgeInsets.only(bottom: 4),
+                                        child: Text(line.isEmpty ? ' ' : line),
+                                      ),
+                                    const Spacer(),
+                                    Text(
+                                      '${page + 1} / ${pages.length}',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(fontSize: 12),
                                     ),
-                                  const Spacer(),
-                                  Text(
-                                    '${page + 1} / ${pages.length}',
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -253,8 +344,8 @@ class _ExamLivePreviewState extends State<ExamLivePreview> {
                     ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ],

@@ -112,6 +112,12 @@ abstract final class ExamDocumentExporter {
         // Sharing remains available if the gallery provider cannot save.
       }
     }
+    return shareImage(bytes, safeName);
+  }
+
+  static Future<ExamExportResult> shareImage(Uint8List bytes, String fileName) async {
+    final name = sanitizeExamFileName(fileName);
+    final safeName = name.toLowerCase().endsWith('.png') ? name : '$name.png';
     final directory = await getTemporaryDirectory();
     final file = File('${directory.path}${Platform.pathSeparator}$safeName');
     await file.writeAsBytes(bytes, flush: true);
