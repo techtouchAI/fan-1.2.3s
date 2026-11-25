@@ -23,7 +23,8 @@ enum ExamPaperFont {
   sakkalMajalla('Sakkal Majalla', 'سكّال مجلّة'),
   arial('Arial', 'آريال'),
   timesNewRoman('Times New Roman', 'تايمز نيو رومان'),
-  amiri('Amiri', 'أميري');
+  amiri('Amiri', 'أميري'),
+  cairo('Cairo', 'القاهرة');
 
   const ExamPaperFont(this.family, this.label);
 

@@ -24,6 +24,19 @@ class _SearchScreenState extends State<SearchScreen> {
   String _query = '';
   List<SearchHit> _results = const <SearchHit>[];
   SearchHitType? _typeFilter;
+  SearchMatchMode _matchMode = SearchMatchMode.allWords;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // AppState rebuilds the scoped index when the grade changes. Re-run an
+    // existing query so retained tabs never expose results from the old grade.
+    _refresh(AppScope.of(context));
+  }
+
+  void _refresh(AppState state) {
+    _results = state.search.search(_query, type: _typeFilter, matchMode: _matchMode);
+  }
 
   @override
   void dispose() {
@@ -40,7 +53,7 @@ class _SearchScreenState extends State<SearchScreen> {
       }
       setState(() {
         _query = value;
-        _results = state.search.search(value);
+        _refresh(state);
       });
     });
   }
@@ -48,7 +61,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void _applyType(SearchHitType? type, AppState state) {
     setState(() {
       _typeFilter = type;
-      _results = state.search.search(_query);
+      _refresh(state);
     });
   }
 
@@ -56,9 +69,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final state = AppScope.of(context);
     final theme = Theme.of(context);
-    final visible = _typeFilter == null
-        ? _results
-        : _results.where((SearchHit hit) => hit.type == _typeFilter).toList(growable: false);
+    final visible = _results;
 
     return Scaffold(
       appBar: AppBar(
@@ -79,7 +90,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   autofocus: true,
                   onChanged: (String value) => _onChanged(value, state),
                   decoration: InputDecoration(
-                    hintText: 'ابحث عن موضوع، مصطلح، أو لوحة…',
+                    hintText: 'ابحث عن سؤال، إجابة، موضوع، مصطلح، أو لوحة…',
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: _controller.text.isEmpty
                         ? null
@@ -111,6 +122,16 @@ class _SearchScreenState extends State<SearchScreen> {
                       onSelected: (_) => _applyType(SearchHitType.unit, state),
                     ),
                     ChoiceChip(
+                      label: const Text('موضوعات'),
+                      selected: _typeFilter == SearchHitType.topic,
+                      onSelected: (_) => _applyType(SearchHitType.topic, state),
+                    ),
+                    ChoiceChip(
+                      label: const Text('أسئلة'),
+                      selected: _typeFilter == SearchHitType.question,
+                      onSelected: (_) => _applyType(SearchHitType.question, state),
+                    ),
+                    ChoiceChip(
                       label: const Text('دروس'),
                       selected: _typeFilter == SearchHitType.lesson,
                       onSelected: (_) => _applyType(SearchHitType.lesson, state),
@@ -132,12 +153,24 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   ],
                 ),
+                SwitchListTile.adaptive(
+                  key: const ValueKey<String>('search-all-words'),
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('مطابقة جميع الكلمات'),
+                  subtitle: const Text('أوقف الخيار لإظهار النتائج المطابقة لأي كلمة.'),
+                  value: _matchMode == SearchMatchMode.allWords,
+                  onChanged: (all) => setState(() {
+                    _matchMode = all ? SearchMatchMode.allWords : SearchMatchMode.anyWord;
+                    _refresh(state);
+                  }),
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 if (_query.trim().isEmpty)
                   EmptyState(
                     icon: Icons.search,
                     title: 'ابحث في كامل المحتوى',
-                    message: 'يشمل البحث عناوين الوحدات والموضوعات والمصطلحات واللوحات '
+                    message:
+                        'يشمل البحث الأسئلة وإجاباتها الموثقة وعناوين الوحدات والموضوعات والمصطلحات واللوحات '
                         'ورسوم الموضوعات والدروس التطبيقية، ويعمل دون اتصال بالإنترنت.',
                   )
                 else if (visible.isEmpty)
@@ -149,15 +182,13 @@ class _SearchScreenState extends State<SearchScreen> {
                 else ...<Widget>[
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: Text(
-                      '${visible.length} نتيجة',
-                      style: theme.textTheme.labelMedium,
-                    ),
+                    child: Text('${visible.length} نتيجة', style: theme.textTheme.labelMedium),
                   ),
                   ...visible.map(
                     (SearchHit hit) => Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                       child: _HitTile(
+                        key: ValueKey<String>('search-hit-${hit.id}'),
                         hit: hit,
                         onTap: () => _openHit(context, state, hit),
                       ),
@@ -174,6 +205,17 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _openHit(BuildContext context, AppState state, SearchHit hit) {
     switch (hit.type) {
+      case SearchHitType.topic:
+      case SearchHitType.question:
+        if (hit.unitId != null) {
+          AppRoutes.openCurriculumResult(
+            context,
+            unitId: hit.unitId!,
+            topicId: hit.topicId,
+            questionId: hit.questionId,
+          );
+        }
+        break;
       case SearchHitType.unit:
         final unit = state.library.unitById(hit.id);
         if (unit != null) {
@@ -200,7 +242,7 @@ class _SearchScreenState extends State<SearchScreen> {
 }
 
 class _HitTile extends StatelessWidget {
-  const _HitTile({required this.hit, required this.onTap});
+  const _HitTile({super.key, required this.hit, required this.onTap});
 
   final SearchHit hit;
   final VoidCallback onTap;
@@ -215,6 +257,8 @@ class _HitTile extends StatelessWidget {
       SearchHitType.term => Icons.translate,
       SearchHitType.plate => Icons.image_outlined,
       SearchHitType.drawing => Icons.brush_outlined,
+      SearchHitType.topic => Icons.article_outlined,
+      SearchHitType.question => Icons.quiz_outlined,
     };
     return Material(
       color: scheme.surface,
@@ -247,9 +291,7 @@ class _HitTile extends StatelessWidget {
                   children: <Widget>[
                     Row(
                       children: <Widget>[
-                        Expanded(
-                          child: Text(hit.title, style: theme.textTheme.titleMedium),
-                        ),
+                        Expanded(child: Text(hit.title, style: theme.textTheme.titleMedium)),
                         Text(hit.typeLabel, style: theme.textTheme.labelMedium),
                       ],
                     ),

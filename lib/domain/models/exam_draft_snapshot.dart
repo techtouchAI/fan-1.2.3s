@@ -93,6 +93,7 @@ class ExamDraftSnapshot {
         'arial',
         'timesNewRoman',
         'amiri',
+        'cairo',
       },
     };
     for (final entry in enums.entries) {

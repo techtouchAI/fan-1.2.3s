@@ -4,7 +4,10 @@
 enum QuestionPrintFont {
   plex('IBM بلكس', 'IBMPlexSansArabic'),
   kufi('كوفي نوتو', 'NotoKufiArabic'),
-  amiri('أميري', 'Amiri');
+  amiri('أميري', 'Amiri'),
+  cairo('القاهرة', 'Cairo'),
+  tajawal('تجوال', 'Tajawal'),
+  almarai('المراعي', 'Almarai');
 
   const QuestionPrintFont(this.label, this.family);
 

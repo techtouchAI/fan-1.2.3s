@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/models/library.dart';
 import '../screens/drawings_screen.dart';
+import '../screens/curriculum_result_screen.dart';
 import '../screens/drawing_viewer_screen.dart';
 import '../screens/exam_composer_screen.dart';
 import '../screens/favorites_screen.dart';
@@ -22,6 +23,20 @@ abstract final class AppRoutes {
     return Navigator.of(
       context,
     ).push(MaterialPageRoute<void>(builder: (BuildContext context) => UnitScreen(unitId: unit.id)));
+  }
+
+  static Future<void> openCurriculumResult(
+    BuildContext context, {
+    required String unitId,
+    String? topicId,
+    String? questionId,
+  }) {
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            CurriculumResultScreen(unitId: unitId, topicId: topicId, questionId: questionId),
+      ),
+    );
   }
 
   static Future<void> openQuiz(BuildContext context, LearningUnit unit) {

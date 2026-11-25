@@ -14,6 +14,7 @@ import '../navigation/app_routes.dart';
 import '../state/app_state.dart';
 import '../widgets/illustration_figure.dart';
 import '../widgets/unit_switcher_bar.dart';
+import '../widgets/unit_question_card.dart';
 import '../widgets/units/unit_sections.dart';
 import '../widgets/text_scale_controls.dart';
 
@@ -243,31 +244,7 @@ class _UnitScreenState extends State<UnitScreen> {
                     const SizedBox(height: AppSpacing.xl),
                     SectionHeader(title: 'أسئلة الوحدة وأجوبتها النموذجية', accent: accent),
                     for (var i = 0; i < unit.questions.length; i++)
-                      Card(
-                        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: ExpansionTile(
-                          key: ValueKey<String>('unit-question-${unit.questions[i].id}'),
-                          title: Text(
-                            '${toArabicDigits('${i + 1}')} • ${unit.questions[i].prompt}',
-                          ),
-                          subtitle: unit.questions[i].options.isEmpty
-                              ? null
-                              : Text(unit.questions[i].options.join(' / ')),
-                          childrenPadding: const EdgeInsets.all(AppSpacing.lg),
-                          children: <Widget>[
-                            Align(
-                              alignment: AlignmentDirectional.centerStart,
-                              child: Text(
-                                unit.questions[i].answerText.isEmpty
-                                    ? 'الإجابة غير متوفرة في المصدر'
-                                    : unit.questions[i].answerText,
-                              ),
-                            ),
-                            if (unit.questions[i].answerSupport?.trim().isNotEmpty == true)
-                              Text('الشاهد / التصحيح: ${unit.questions[i].answerSupport}'),
-                          ],
-                        ),
-                      ),
+                      UnitQuestionCard(question: unit.questions[i], number: i + 1),
                     _QuizCallToAction(unit: unit, state: state, accent: accent),
                   ],
                   if (position >= 0) ...<Widget>[
