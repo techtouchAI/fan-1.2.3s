@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:file_selector/file_selector.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -25,10 +27,31 @@ typedef ExamDocumentExport = Future<ExamExportResult> Function(Uint8List bytes, 
 
 /// Writes the Word file where the teacher can reach it, offline.
 ///
-/// On Android the document is written to the cache directory and handed to the
-/// system share sheet (Files, WhatsApp, Drive, Word…). On Windows it is written
-/// to the user's Documents folder, which the file manager already shows.
+/// Mobile documents use the native share sheet; desktop exports use Save As.
+/// Android 10+ images go to Pictures/Mirsam without storage permissions.
 abstract final class ExamDocumentExporter {
+  static const mediaStoreChannel = MethodChannel('com.techtouchai.mirsam/media_store');
+
+  static Future<ExamExportResult> _saveAs(Uint8List bytes, String name, String extension) async {
+    final location = await getSaveLocation(
+      suggestedName: name,
+      acceptedTypeGroups: <XTypeGroup>[
+        XTypeGroup(
+          label: extension == 'png' ? 'PNG Image' : 'Microsoft Word',
+          extensions: <String>[extension],
+        ),
+      ],
+    );
+    if (location == null) return const ExamExportResult(message: 'أُلغي الحفظ');
+    final path = location.path.toLowerCase().endsWith('.$extension')
+        ? location.path
+        : '${location.path}.$extension';
+    final file = File(path);
+    await file.parent.create(recursive: true);
+    await file.writeAsBytes(bytes, flush: true);
+    return ExamExportResult(message: 'حُفظ الملف في: ${file.path}', path: file.path);
+  }
+
   static Future<ExamExportResult> export(Uint8List bytes, String fileName) async {
     final name = fileName.trim().isEmpty ? 'mirsam-exam.docx' : sanitizeExamFileName(fileName);
     final safeName = name.toLowerCase().endsWith('.docx') ? name : '$name.docx';
@@ -47,28 +70,33 @@ abstract final class ExamDocumentExporter {
       );
     }
 
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}${Platform.pathSeparator}$safeName');
-    await file.writeAsBytes(bytes, flush: true);
-    return ExamExportResult(message: 'حُفظ ملف الوورد في: ${file.path}', path: file.path);
+    return _saveAs(bytes, safeName, 'docx');
   }
 
   /// Save/share the current A4 preview page without mislabelling it as DOCX.
   static Future<ExamExportResult> exportImage(Uint8List bytes, String fileName) async {
     final name = sanitizeExamFileName(fileName);
     final safeName = name.endsWith('.png') ? name : '$name.png';
-    final mobile = Platform.isAndroid || Platform.isIOS;
-    final directory = mobile
-        ? await getTemporaryDirectory()
-        : await getApplicationDocumentsDirectory();
+    if (!Platform.isAndroid && !Platform.isIOS) return _saveAs(bytes, safeName, 'png');
+    if (Platform.isAndroid) {
+      try {
+        final path = await mediaStoreChannel.invokeMethod<String>(
+          'saveImageToGallery',
+          <String, Object>{'bytes': bytes, 'fileName': safeName},
+        );
+        if (path != null && path.isNotEmpty) {
+          return ExamExportResult(message: 'حُفظت الصورة في المعرض: $path', path: path);
+        }
+      } on MissingPluginException {
+        // Older Android versions and hosts without the channel use sharing.
+      } on PlatformException {
+        // Sharing remains available if the gallery provider cannot save.
+      }
+    }
+    final directory = await getTemporaryDirectory();
     final file = File('${directory.path}${Platform.pathSeparator}$safeName');
     await file.writeAsBytes(bytes, flush: true);
-    if (mobile)
-      await Share.shareXFiles(<XFile>[XFile(file.path, mimeType: 'image/png')], subject: safeName);
-    return ExamExportResult(
-      message: mobile ? 'تم تجهيز الصورة للمشاركة' : 'حُفظت الصورة في: ${file.path}',
-      path: file.path,
-      shared: mobile,
-    );
+    await Share.shareXFiles(<XFile>[XFile(file.path, mimeType: 'image/png')], subject: safeName);
+    return ExamExportResult(message: 'تم تجهيز الصورة للمشاركة', path: file.path, shared: true);
   }
 }
