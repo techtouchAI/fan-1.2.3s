@@ -293,6 +293,18 @@ void main() {
     state.dispose();
   });
 
+  testWidgets('changing grade discards an unfinished interactive round', (tester) async {
+    final app = await pumpScreen(tester, const QuizPickerScreen());
+    await tester.tap(find.byKey(const ValueKey<String>('start-quiz-button')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey<String>('quiz-option-0')), findsOneWidget);
+    await app.setGrade('g2');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey<String>('start-quiz-button')), findsOneWidget);
+    expect(find.byKey(const ValueKey<String>('quiz-option-0')), findsNothing);
+    expect(app.progress.quizHistory, isEmpty);
+  });
+
   testWidgets('interactive lobby uses art kinds and keeps unit review access', (tester) async {
     await pumpScreen(tester, const QuizPickerScreen());
     expect(find.byKey(const ValueKey<String>('quiz-unit-filter')), findsOneWidget);

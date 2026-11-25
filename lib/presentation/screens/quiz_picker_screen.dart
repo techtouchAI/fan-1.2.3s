@@ -29,6 +29,25 @@ class _QuizPickerScreenState extends State<QuizPickerScreen> {
   bool _answeredCurrent = false;
   bool _lastCorrect = false;
   int? _pickedIndex;
+  String? _gradeId;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final gradeId = AppScope.of(context).gradeId;
+    if (_gradeId != gradeId) {
+      // Tabs stay alive across navigation. Never finish an old grade's round
+      // under the newly selected grade or leave its filters active.
+      _gradeId = gradeId;
+      _selectedUnitId = 'all';
+      _selectedExamStyle = 'all';
+      _activeSession = null;
+      _currentIndex = 0;
+      _correctCount = 0;
+      _answeredCurrent = false;
+      _pickedIndex = null;
+    }
+  }
 
   void _startQuiz(AppState state) {
     final rng = Random();
