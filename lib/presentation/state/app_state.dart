@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/models/library.dart';
+import '../../data/local/saved_exam_store.dart';
+import 'saved_exam_library.dart';
+import '../../domain/repositories/exam_profile_repository.dart';
+import '../../data/local/memory_exam_profile_repository.dart';
 import '../../domain/models/progress.dart';
+import '../../domain/models/quiz_result.dart';
 import '../../domain/repositories/progress_repository.dart';
 import '../../domain/services/search_service.dart';
 
@@ -15,8 +20,14 @@ class AppState extends ChangeNotifier {
     required this.library,
     required ReadingProgress progress,
     required ProgressRepository progressRepository,
-  })  : _progress = progress,
-        _progressRepository = progressRepository {
+    SavedExamStore? savedExamStore,
+    ExamProfile teacherProfile = const ExamProfile(),
+    ExamProfileRepository? profileRepository,
+  }) : _progress = progress,
+       _progressRepository = progressRepository {
+    this.teacherProfile = teacherProfile;
+    _profileRepository = profileRepository ?? MemoryExamProfileRepository(teacherProfile);
+    savedExams = SavedExamLibrary(savedExamStore ?? MemorySavedExamStore());
     search = SearchService(
       library,
       unitFilter: progress.gradeId == null ? null : _unitIdsOf(library, progress.gradeId!),
@@ -32,6 +43,22 @@ class AppState extends ChangeNotifier {
       for (final LearningUnit unit in library.units)
         if (unit.isIntroduction || unit.isTheatre) unit.id,
     };
+  }
+
+  late final ExamProfileRepository _profileRepository;
+  late ExamProfile teacherProfile;
+  Future<void> updateTeacherProfile(ExamProfile profile) async {
+    await _profileRepository.save(profile);
+    teacherProfile = profile;
+    notifyListeners();
+  }
+
+  late final SavedExamLibrary savedExams;
+
+  @override
+  void dispose() {
+    savedExams.dispose();
+    super.dispose();
   }
 
   final Library library;
@@ -105,8 +132,7 @@ class AppState extends ChangeNotifier {
   static const double TextScaleStep = 0.1;
 
   /// Number of [TextScaleStep]s between the two bounds.
-  static int get textScaleDivisions =>
-      ((MaxTextScale - MinTextScale) / TextScaleStep).round();
+  static int get textScaleDivisions => ((MaxTextScale - MinTextScale) / TextScaleStep).round();
 
   // ---------------------------------------------------------------- grade ---
 
@@ -210,9 +236,7 @@ class AppState extends ChangeNotifier {
       return library.plates;
     }
     final visible = visibleUnitIds;
-    return library.plates
-        .where((plate) => visible.contains(plate.unitId))
-        .toList(growable: false);
+    return library.plates.where((plate) => visible.contains(plate.unitId)).toList(growable: false);
   }
 
   /// The topic drawings of the chosen grade, in document order.
@@ -236,9 +260,7 @@ class AppState extends ChangeNotifier {
 
   /// Drawings attached to one unit, in document order.
   List<TopicDrawing> drawingsOfUnit(String unitId) {
-    return visibleDrawings
-        .where((drawing) => drawing.unitId == unitId)
-        .toList(growable: false);
+    return visibleDrawings.where((drawing) => drawing.unitId == unitId).toList(growable: false);
   }
 
   List<GlossaryTerm> get visibleGlossary {
@@ -246,7 +268,9 @@ class AppState extends ChangeNotifier {
     if (id == null) {
       return library.glossary;
     }
-    return library.glossary.where((term) => visibleUnitIds.contains(term.unitId)).toList(growable: false);
+    return library.glossary
+        .where((term) => visibleUnitIds.contains(term.unitId))
+        .toList(growable: false);
   }
 
   Future<void> setGrade(String? gradeId) async {
@@ -310,7 +334,31 @@ class AppState extends ChangeNotifier {
   }
 
   List<LessonPlan> get favoriteLessons {
-    return library.lessons.where((lesson) => _progress.isFavorite(lesson.id)).toList(growable: false);
+    return library.lessons
+        .where((lesson) => _progress.isFavorite(lesson.id))
+        .toList(growable: false);
+  }
+
+  Future<void> recordInteractiveQuiz({
+    required String scopeLabel,
+    required int correct,
+    required int total,
+  }) async {
+    if (total <= 0 || correct < 0 || correct > total) return;
+    _progress.quizHistory.insert(
+      0,
+      QuizResult(
+        gradeId: gradeId ?? '',
+        scopeLabel: scopeLabel,
+        correct: correct,
+        total: total,
+        completedAt: DateTime.now(),
+      ),
+    );
+    if (_progress.quizHistory.length > 100)
+      _progress.quizHistory.removeRange(100, _progress.quizHistory.length);
+    notifyListeners();
+    await _persist();
   }
 
   Future<void> toggleFavorite(String id) async {
@@ -402,7 +450,7 @@ class AppState extends ChangeNotifier {
 /// Makes [AppState] available to the widget tree and rebuilds on change.
 class AppScope extends InheritedNotifier<AppState> {
   const AppScope({super.key, required AppState state, required super.child})
-      : super(notifier: state);
+    : super(notifier: state);
 
   static AppState of(BuildContext context) {
     final scope = context.dependOnInheritedWidgetOfExactType<AppScope>();

@@ -5,6 +5,7 @@ import '../../core/utils/arabic_text.dart';
 import '../../core/widgets/app_page.dart';
 import '../../domain/models/library.dart';
 import '../state/app_state.dart';
+import '../widgets/teacher_profile_panel.dart';
 
 /// First-launch gate: the learner picks one of the three grades, and only that
 /// grade's units, questions, plates and glossary terms appear afterwards.
@@ -67,6 +68,8 @@ class GradePickerScreen extends StatelessWidget {
                     _GradeCard(section: grade),
                     const SizedBox(height: AppSpacing.md),
                   ],
+                  const SizedBox(height: AppSpacing.lg),
+                  const TeacherProfilePanel(),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     'التربية الفنية • المرحلة المتوسطة • يعمل دون إنترنت',
@@ -126,10 +129,7 @@ class _GradeCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    Text(
-                      section.title,
-                      style: theme.textTheme.titleLarge?.copyWith(fontSize: 18),
-                    ),
+                    Text(section.title, style: theme.textTheme.titleLarge?.copyWith(fontSize: 18)),
                     const SizedBox(height: 2),
                     Text(
                       '${toArabicDigits('${units.length}')} وحدات • '

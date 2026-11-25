@@ -68,6 +68,19 @@ class HomeScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: <Widget>[
                       const _ProgressPanel(),
+                      if (!state.teacherProfile.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: AppSpacing.sm),
+                          child: Text(
+                            <String>[
+                              if (state.teacherProfile.teacherName.isNotEmpty)
+                                'الأستاذ: ${state.teacherProfile.teacherName}',
+                              if (state.teacherProfile.schoolName.isNotEmpty)
+                                state.teacherProfile.schoolName,
+                            ].join(' • '),
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                        ),
                       const SizedBox(height: AppSpacing.xl),
                       _StatsRow(state: state),
                       const SizedBox(height: AppSpacing.xl),
@@ -76,6 +89,19 @@ class HomeScreen extends StatelessWidget {
                         accent: Theme.of(context).colorScheme.secondary,
                       ),
                       const _ToolActions(),
+                      const SizedBox(height: AppSpacing.sm),
+                      ListenableBuilder(
+                        listenable: state.savedExams,
+                        builder: (context, _) => _ToolActionCard(
+                          key: const ValueKey<String>('open-saved-exams'),
+                          title: 'أسئلتي المحفوظة',
+                          subtitle:
+                              'كل ورقة أسئلة تنشئها تُحفظ هنا تلقائياً مع كل تعديل • ${toArabicDigits('${state.savedExams.papers.where((p) => p.gradeId == state.gradeId).length}')} ورقة',
+                          icon: Icons.inventory_2_outlined,
+                          accent: Theme.of(context).colorScheme.tertiary,
+                          onTap: () => AppRoutes.openSavedExams(context),
+                        ),
+                      ),
                       const SizedBox(height: AppSpacing.xl),
                       if (state.lastReadUnit != null) ...<Widget>[
                         _ContinueCard(unit: state.lastReadUnit!),

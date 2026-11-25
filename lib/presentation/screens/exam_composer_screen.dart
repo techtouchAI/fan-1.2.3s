@@ -23,6 +23,10 @@ import '../widgets/exam/exam_review_panel.dart';
 import '../widgets/exam/exam_theory_panel.dart';
 import '../widgets/exam/exam_typography_panel.dart';
 import '../widgets/text_scale_controls.dart';
+import '../widgets/exam/exam_live_preview.dart';
+import '../widgets/exam/exam_generator_panel.dart';
+import 'saved_exams_screen.dart';
+import '../state/saved_exam_library.dart';
 
 /// Titles of the five steps of the composer, in order.
 const List<String> examStepTitles = <String>[
@@ -44,9 +48,15 @@ class ExamComposerScreen extends StatefulWidget {
     this.exportDocument,
     this.profileRepository,
     this.questionBankRepository,
+    this.savedExamId,
+    this.exportImage,
+    this.initialSection = -1,
   });
 
   final ExamDocumentExport? exportDocument;
+  final ExamDocumentExport? exportImage;
+  final String? savedExamId;
+  final int initialSection;
   final ExamProfileRepository? profileRepository;
   final ExamQuestionBankRepository? questionBankRepository;
 
@@ -58,7 +68,11 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
   late final ExamProfileRepository _profiles;
   ExamComposerState? _composer;
   ExamComposerControllers? _controllers;
-  int _step = 0;
+  int _step = -1;
+  bool _preview = false;
+  String? _savedId;
+  SavedExamLibrary? _library;
+  String _gradeId = '';
   int _theoryIndex = 0;
   bool _exporting = false;
 
@@ -68,6 +82,7 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
   @override
   void initState() {
     super.initState();
+    _step = widget.initialSection;
     _profiles = widget.profileRepository ?? const PrefsExamProfileRepository();
     _bank = widget.questionBankRepository ?? const PrefsExamQuestionBankRepository();
     _bootstrap();
@@ -75,6 +90,7 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
 
   @override
   void dispose() {
+    _composer?.removeListener(_autosave);
     _controllers?.dispose();
     _composer?.dispose();
     super.dispose();
@@ -96,16 +112,36 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
     }
     final app = AppScope.read(context);
     final composer = ExamComposerState(
-      units: app.visibleUnits,
-      drawings: app.visibleDrawings,
+      units: widget.savedExamId == null
+          ? app.visibleUnits
+          : app.library.unitsOf(
+              app.savedExams.byId(widget.savedExamId!)?.gradeId ?? app.gradeId ?? '',
+            ),
+      drawings: app.library.drawings,
       gradeLabel: examGradeLabel(app.gradeTitle),
       profile: profile,
     );
+    _library = app.savedExams;
+    final saved = widget.savedExamId == null ? null : app.savedExams.byId(widget.savedExamId!);
+    _gradeId = saved?.gradeId ?? app.gradeId ?? '';
+    if (saved != null) {
+      composer.restoreDraft(saved.draft);
+      _savedId = saved.id;
+    }
     final controllers = ExamComposerControllers(composer);
+    composer.addListener(_autosave);
     setState(() {
       _composer = composer;
       _controllers = controllers;
     });
+  }
+
+  void _autosave() {
+    final composer = _composer;
+    final library = _library;
+    if (composer == null || library == null) return;
+    final saved = library.save(composer.toDraft(), id: _savedId, gradeId: _gradeId);
+    _savedId = saved.id;
   }
 
   Future<List<ExamQuestionBankEntry>> _loadBank() async {
@@ -195,6 +231,7 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
       return;
     }
     final exporter = widget.exportDocument ?? ExamDocumentExporter.export;
+    _autosave();
     setState(() => _exporting = true);
     try {
       final Uint8List bytes = ExamDocxBuilder.build(paper);
@@ -222,10 +259,13 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
   }
 
   void _goTo(int step) {
-    if (step < 0 || step >= examStepTitles.length || step == _step) {
+    if (step < -1 || step >= examStepTitles.length || step == _step) {
       return;
     }
-    setState(() => _step = step);
+    setState(() {
+      _step = step;
+      _preview = false;
+    });
   }
 
   @override
@@ -234,15 +274,82 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
     final controllers = _controllers;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('كتابة الأسئلة'),
-        actions: const <Widget>[TextScaleControls()],
+        title: const Text('مولّد أسئلة الامتحان الرسمي (Word)'),
+        actions: <Widget>[
+          if (_library != null)
+            ListenableBuilder(
+              listenable: _library!,
+              builder: (context, _) => IconButton(
+                tooltip: _library!.lastWriteError != null
+                    ? 'تعذّر الحفظ؛ اضغط لإعادة المحاولة'
+                    : _savedId == null
+                    ? 'تُحفظ الورقة تلقائياً عند أول تعديل'
+                    : 'تم حفظ آخر تعديل تلقائياً',
+                icon: Icon(
+                  _library!.lastWriteError != null
+                      ? Icons.cloud_off
+                      : _savedId == null
+                      ? Icons.cloud_outlined
+                      : Icons.cloud_done_outlined,
+                ),
+                onPressed: () {
+                  _autosave();
+                  _library!.retry();
+                },
+              ),
+            ),
+          const TextScaleControls(),
+        ],
       ),
       body: composer == null || controllers == null
           ? const Center(child: CircularProgressIndicator())
           : ListenableBuilder(
               listenable: composer,
-              builder: (BuildContext context, Widget? child) =>
-                  _steps(context, composer, controllers),
+              builder: (BuildContext context, Widget? child) => Column(
+                children: <Widget>[
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    color: Theme.of(context).colorScheme.surface,
+                    child: Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: AppSpacing.sm,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: <Widget>[
+                        SegmentedButton<bool>(
+                          segments: const <ButtonSegment<bool>>[
+                            ButtonSegment<bool>(
+                              value: false,
+                              icon: Icon(Icons.tune, size: 18),
+                              label: Text('إعداد الأسئلة'),
+                            ),
+                            ButtonSegment<bool>(
+                              value: true,
+                              icon: Icon(Icons.preview_outlined, size: 18),
+                              label: Text('معاينة ورقة A4'),
+                            ),
+                          ],
+                          selected: <bool>{_preview},
+                          onSelectionChanged: (next) => setState(() => _preview = next.first),
+                        ),
+                        Text(
+                          'النظري: ${composer.theoryDegree ?? 0} • العملي: ${composer.practicalDegree ?? 0}',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: _preview
+                        ? ExamLivePreview(
+                            paper: composer.buildPaperWith(
+                              composer.typography ?? const ExamPaperTypography(),
+                            ),
+                            exportImage: widget.exportImage,
+                          )
+                        : _steps(context, composer, controllers),
+                  ),
+                ],
+              ),
             ),
       bottomNavigationBar: composer == null
           ? null
@@ -280,11 +387,35 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
               const SizedBox(height: AppSpacing.md),
+              ExamGeneratorPanel(
+                state: composer,
+                onGenerated: () => controllers.syncFrom(composer),
+              ),
+              const SizedBox(height: AppSpacing.lg),
               _bankBar(),
               const SizedBox(height: AppSpacing.md),
               _StepBar(step: _step, onSelected: _goTo),
               const SizedBox(height: AppSpacing.lg),
-              panels[_step],
+              if (_step < 0) ...<Widget>[
+                panels[1],
+                const SizedBox(height: AppSpacing.lg),
+                panels[0],
+                const SizedBox(height: AppSpacing.lg),
+                for (var i = 0; i < ExamTheoryQuestion.kinds.length; i++) ...<Widget>[
+                  ExamTheoryPanel(
+                    state: composer,
+                    controllers: controllers,
+                    index: i,
+                    onIndexChanged: (value) => setState(() {
+                      _step = 2;
+                      _theoryIndex = value;
+                    }),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
+                panels[3],
+              ] else
+                panels[_step],
             ],
           ),
         ),
@@ -299,6 +430,15 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
       runSpacing: AppSpacing.sm,
       children: <Widget>[
         OutlinedButton.icon(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => SavedExamsScreen(onExport: widget.exportDocument),
+            ),
+          ),
+          icon: const Icon(Icons.inventory_2_outlined, size: 18),
+          label: const Text('أسئلتي المحفوظة'),
+        ),
+        OutlinedButton.icon(
           key: const ValueKey<String>('exam-save-group'),
           onPressed: _exporting ? null : _saveGroup,
           icon: const Icon(Icons.bookmark_add_outlined, size: 18),
@@ -308,9 +448,7 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
           key: const ValueKey<String>('exam-open-bank'),
           onPressed: _exporting ? null : _openBank,
           icon: const Icon(Icons.inventory_2_outlined, size: 18),
-          label: Text(
-            'المجموعات المحفوظة (${toArabicDigits('${_savedGroups.length}')})',
-          ),
+          label: Text('المجموعات المحفوظة (${toArabicDigits('${_savedGroups.length}')})'),
         ),
       ],
     );
@@ -321,7 +459,7 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
     final scheme = theme.colorScheme;
     final ExamPaper? paper = composer.paper;
     final List<String> issues = composer.issues;
-    final bool last = _step == examStepTitles.length - 1;
+    final bool last = _preview || _step == examStepTitles.length - 1 || _step == -1;
     final String status = paper == null
         ? (issues.isEmpty ? 'أكمل بيانات الامتحان' : issues.first)
         : '${toArabicDigits('${paper.theoryItemCount}')} عنصراً نظرياً • '
@@ -334,10 +472,7 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
           child: Align(
             alignment: Alignment.center,
             heightFactor: 1,
@@ -426,6 +561,12 @@ class _StepBar extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: <Widget>[
+          ChoiceChip(
+            label: const Text('جميع الإعدادات'),
+            selected: step == -1,
+            onSelected: (_) => onSelected(-1),
+          ),
+          const SizedBox(width: AppSpacing.xs),
           for (var i = 0; i < examStepTitles.length; i++) ...<Widget>[
             if (i > 0) const SizedBox(width: AppSpacing.xs),
             ChoiceChip(

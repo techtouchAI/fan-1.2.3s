@@ -101,7 +101,11 @@ class QuestionPdfBuilder {
                 // a future question is exceptionally long.
                 content.add(
                   pw.Text(
-                    formatPrintableQuestion(question, number),
+                    formatPrintableQuestion(
+                      question,
+                      number,
+                      includeAnswers: plan.settings.includeAnswers,
+                    ),
                     style: bodyStyle,
                     textAlign: pw.TextAlign.right,
                     overflow: pw.TextOverflow.span,

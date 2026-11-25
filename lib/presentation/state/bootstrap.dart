@@ -4,6 +4,9 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/local/asset_content_repository.dart';
 import '../../data/local/prefs_progress_repository.dart';
+import '../../data/local/saved_exam_store.dart';
+import '../../data/local/prefs_exam_profile_repository.dart';
+import '../../domain/repositories/exam_profile_repository.dart';
 import '../../domain/models/library.dart';
 import '../../domain/models/progress.dart';
 import '../../domain/repositories/content_repository.dart';
@@ -16,11 +19,7 @@ import 'app_state.dart';
 /// The loader is injectable so that widget tests can run the full application
 /// against the very same JSON assets.
 class MirsamBootstrap extends StatefulWidget {
-  const MirsamBootstrap({
-    super.key,
-    this.contentRepository,
-    this.progressRepository,
-  });
+  const MirsamBootstrap({super.key, this.contentRepository, this.progressRepository});
 
   final ContentRepository? contentRepository;
   final ProgressRepository? progressRepository;
@@ -44,6 +43,8 @@ class _MirsamBootstrapState extends State<MirsamBootstrap> {
     final results = await Future.wait<Object>(<Future<Object>>[
       contentRepository.load(),
       progressRepository.load(),
+      SavedExamStore.open(),
+      const PrefsExamProfileRepository().load(),
     ]);
     final library = results[0] as Library;
     return _BootstrapData(
@@ -51,6 +52,9 @@ class _MirsamBootstrapState extends State<MirsamBootstrap> {
         library: library,
         progress: results[1] as ReadingProgress,
         progressRepository: progressRepository,
+        savedExamStore: results[2] as SavedExamStore,
+        teacherProfile: results[3] as ExamProfile,
+        profileRepository: const PrefsExamProfileRepository(),
       ),
     );
   }
@@ -75,10 +79,7 @@ class _MirsamBootstrapState extends State<MirsamBootstrap> {
             home: const _SplashScreen(),
           );
         }
-        return AppScope(
-          state: data.state,
-          child: const MirsamApp(),
-        );
+        return AppScope(state: data.state, child: const MirsamApp());
       },
     );
   }

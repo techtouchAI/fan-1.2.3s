@@ -21,10 +21,7 @@ class ExamExportResult {
 }
 
 /// Signature of the platform save/share step, replaceable in the UI tests.
-typedef ExamDocumentExport = Future<ExamExportResult> Function(
-  Uint8List bytes,
-  String fileName,
-);
+typedef ExamDocumentExport = Future<ExamExportResult> Function(Uint8List bytes, String fileName);
 
 /// Writes the Word file where the teacher can reach it, offline.
 ///
@@ -40,10 +37,9 @@ abstract final class ExamDocumentExporter {
       final directory = await getTemporaryDirectory();
       final file = File('${directory.path}${Platform.pathSeparator}$safeName');
       await file.writeAsBytes(bytes, flush: true);
-      await Share.shareXFiles(
-        <XFile>[XFile(file.path, mimeType: ExamDocxBuilder.mimeType)],
-        subject: safeName,
-      );
+      await Share.shareXFiles(<XFile>[
+        XFile(file.path, mimeType: ExamDocxBuilder.mimeType),
+      ], subject: safeName);
       return ExamExportResult(
         message: 'تم تجهيز ملف الوورد: $safeName',
         path: file.path,
@@ -54,9 +50,25 @@ abstract final class ExamDocumentExporter {
     final directory = await getApplicationDocumentsDirectory();
     final file = File('${directory.path}${Platform.pathSeparator}$safeName');
     await file.writeAsBytes(bytes, flush: true);
+    return ExamExportResult(message: 'حُفظ ملف الوورد في: ${file.path}', path: file.path);
+  }
+
+  /// Save/share the current A4 preview page without mislabelling it as DOCX.
+  static Future<ExamExportResult> exportImage(Uint8List bytes, String fileName) async {
+    final name = sanitizeExamFileName(fileName);
+    final safeName = name.endsWith('.png') ? name : '$name.png';
+    final mobile = Platform.isAndroid || Platform.isIOS;
+    final directory = mobile
+        ? await getTemporaryDirectory()
+        : await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}${Platform.pathSeparator}$safeName');
+    await file.writeAsBytes(bytes, flush: true);
+    if (mobile)
+      await Share.shareXFiles(<XFile>[XFile(file.path, mimeType: 'image/png')], subject: safeName);
     return ExamExportResult(
-      message: 'حُفظ ملف الوورد في: ${file.path}',
+      message: mobile ? 'تم تجهيز الصورة للمشاركة' : 'حُفظت الصورة في: ${file.path}',
       path: file.path,
+      shared: mobile,
     );
   }
 }

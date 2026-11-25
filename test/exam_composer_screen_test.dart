@@ -38,6 +38,7 @@ Future<AppState> pumpComposer(
   final state = await pumpScreen(
     tester,
     ExamComposerScreen(
+      initialSection: 0,
       exportDocument: exporter,
       profileRepository: repository ?? MemoryExamProfileRepository(),
       questionBankRepository: bank ?? MemoryExamQuestionBankRepository(),
@@ -50,8 +51,9 @@ Future<AppState> pumpComposer(
 
 /// The first documented question of each kind of the test grade, as offered
 /// options (their ids are the globally unique selection keys).
-({ExamQuestionOption trueFalse, ExamQuestionOption choice, ExamQuestionOption open})
-firstQuestions(AppState state) {
+({ExamQuestionOption trueFalse, ExamQuestionOption choice, ExamQuestionOption open}) firstQuestions(
+  AppState state,
+) {
   final options = examQuestionOptions(state.library.unitsOf(testGrade));
   return (
     trueFalse: options.firstWhere(
@@ -113,17 +115,13 @@ void main() {
     expect(find.text('نوع الخط وحجمه'), findsOneWidget);
   });
 
-  testWidgets('the home page shows the writer as its own section card',
-      (tester) async {
+  testWidgets('the home page shows the writer as its own section card', (tester) async {
     await pumpApplication(tester, size: const Size(1280, 1600));
 
     expect(find.text('أقسام التطبيق'), findsOneWidget);
     // A standalone card, not only the shortcut row below the grid.
     expect(find.text('كتابة الأسئلة'), findsOneWidget);
-    expect(
-      find.text('اكتب ورقة امتحان وصدّرها ملف وورد مطابقاً للنموذج الرسمي'),
-      findsOneWidget,
-    );
+    expect(find.text('اكتب ورقة امتحان وصدّرها ملف وورد مطابقاً للنموذج الرسمي'), findsOneWidget);
   });
 
   testWidgets('starts from the official sizes and the device academic year', (tester) async {
@@ -188,8 +186,7 @@ void main() {
     expect(find.text('س2: الاختيارات'), findsOneWidget);
   });
 
-  testWidgets('tightens the line spacing and restores the official one',
-      (tester) async {
+  testWidgets('tightens the line spacing and restores the official one', (tester) async {
     final exports = <({Uint8List bytes, String name})>[];
     final state = await pumpComposer(
       tester,
@@ -203,19 +200,13 @@ void main() {
     // 100 %, so the button is already usable.
     expect(key('exam-spacing-label'), findsOneWidget);
     expect(tester.widget<Slider>(key('exam-line-spacing-slider')).value, 55);
-    expect(
-      tester.widget<TextButton>(key('exam-line-spacing-reset')).onPressed,
-      isNotNull,
-    );
+    expect(tester.widget<TextButton>(key('exam-line-spacing-reset')).onPressed, isNotNull);
 
     await tester.enterText(key('exam-line-spacing'), '70');
     await tester.pump();
     expect(find.textContaining('٧٠٪'), findsOneWidget);
     expect(tester.widget<Slider>(key('exam-line-spacing-slider')).value, 70);
-    expect(
-      tester.widget<TextButton>(key('exam-line-spacing-reset')).onPressed,
-      isNotNull,
-    );
+    expect(tester.widget<TextButton>(key('exam-line-spacing-reset')).onPressed, isNotNull);
 
     // Out-of-range input is refused instead of silently exported.
     await tester.enterText(key('exam-line-spacing'), '10');
@@ -226,10 +217,7 @@ void main() {
     expect(fieldText(tester, 'exam-line-spacing'), '100');
     expect(tester.widget<Slider>(key('exam-line-spacing-slider')).value, 100);
     // Nothing left to restore.
-    expect(
-      tester.widget<TextButton>(key('exam-line-spacing-reset')).onPressed,
-      isNull,
-    );
+    expect(tester.widget<TextButton>(key('exam-line-spacing-reset')).onPressed, isNull);
 
     // 70 % must reach the exported document: 360 * 0.7 = 252 twips.
     await tester.enterText(key('exam-line-spacing'), '70');
@@ -388,15 +376,11 @@ void main() {
 
     expect(bank.saveCount, 1);
     expect(bank.entries, hasLength(1));
-    expect(
-      bank.entries.single.selection['trueFalse'],
-      contains(questions.trueFalse.id),
-    );
+    expect(bank.entries.single.selection['trueFalse'], contains(questions.trueFalse.id));
     // The stored entry carries the marks and captions too.
     expect(bank.entries.single.theoryDegree, 30);
     expect(bank.entries.single.practicalDegree, 70);
     expect(bank.entries.single.theoryHeader, ExamPaper.defaultTheoryHeader);
-
   });
 
   testWidgets('restores a stored group into a fresh composer', (tester) async {
@@ -409,8 +393,9 @@ void main() {
       selection: <String, List<String>>{
         'trueFalse': <String>[
           examQuestionOptions(library.unitsOf(testGrade))
-              .firstWhere((ExamQuestionOption option) =>
-                  option.question.kind == QuestionKind.trueFalse)
+              .firstWhere(
+                (ExamQuestionOption option) => option.question.kind == QuestionKind.trueFalse,
+              )
               .id,
         ],
       },
@@ -434,8 +419,7 @@ void main() {
     );
   });
 
-  testWidgets('the two section headings are editable and reach the file',
-      (tester) async {
+  testWidgets('the two section headings are editable and reach the file', (tester) async {
     final exports = <({Uint8List bytes, String name})>[];
     final state = await pumpComposer(
       tester,
@@ -482,9 +466,7 @@ void main() {
   });
 
   for (final double width in <double>[320, 360, 390]) {
-    testWidgets('fits a ${width.toInt()} pixel phone at the largest text scale', (
-      tester,
-    ) async {
+    testWidgets('fits a ${width.toInt()} pixel phone at the largest text scale', (tester) async {
       tester.platformDispatcher.textScaleFactorTestValue = 1.2;
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
       await pumpComposer(tester, size: Size(width, 800));

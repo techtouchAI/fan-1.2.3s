@@ -65,12 +65,14 @@ class QuestionPrintPlan {
     Iterable<LearningUnit> availableUnits,
     Set<String> selectedIds, {
     QuestionPrintSettings settings = const QuestionPrintSettings(),
+    Set<QuestionKind>? allowedKinds,
   }) {
     final units = printableUnits(
       availableUnits,
     ).where((LearningUnit unit) => selectedIds.contains(unit.id)).toList(growable: false);
     final sections = <QuestionPrintSection>[];
     for (final kind in printableQuestionKinds) {
+      if (allowedKinds != null && !allowedKinds.contains(kind)) continue;
       final groups = <QuestionPrintUnitGroup>[];
       for (final unit in units) {
         final questions = questionsOfKind(unit, kind);
@@ -98,13 +100,26 @@ class QuestionPrintPlan {
 
   bool get isEmpty => sections.isEmpty;
 
-  int get questionCount => units.fold<int>(0, (sum, unit) => sum + unit.questions.length);
+  int get questionCount => sections.fold<int>(
+    0,
+    (sum, section) => sum + section.groups.fold<int>(0, (n, group) => n + group.questions.length),
+  );
 }
 
 /// A question with its documented answer, independent of quiz responses.
 /// Missing or invalid answers are identified explicitly rather than guessed.
-String formatPrintableQuestion(Question question, int number) {
+String formatPrintableQuestion(Question question, int number, {bool includeAnswers = true}) {
   final prompt = '${toArabicDigits('$number')}. ${question.prompt}';
+  if (!includeAnswers) {
+    final choices = question.kind == QuestionKind.choice
+        ? question.options
+              .asMap()
+              .entries
+              .map((e) => '(${_choiceLabel(e.key)}) ${e.value}')
+              .join('   ')
+        : '';
+    return choices.isEmpty ? prompt : '$prompt  $choices';
+  }
   switch (question.kind) {
     case QuestionKind.trueFalse:
       final answer = switch (question.boolAnswer) {

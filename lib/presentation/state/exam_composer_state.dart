@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 
 import '../../domain/models/exam_paper.dart';
@@ -19,9 +21,9 @@ class ExamComposerState extends ChangeNotifier {
     required String gradeLabel,
     DateTime? now,
     ExamProfile profile = const ExamProfile(),
-  })  : options = examQuestionOptions(units),
-        drawings = examDrawingOptions(drawings),
-        _now = now ?? DateTime.now() {
+  }) : options = examQuestionOptions(units),
+       drawings = examDrawingOptions(drawings),
+       _now = now ?? DateTime.now() {
     this.gradeLabel = profile.gradeLabel.trim().isNotEmpty ? profile.gradeLabel : gradeLabel;
     schoolName = profile.schoolName;
     sectionName = profile.sectionName;
@@ -50,6 +52,7 @@ class ExamComposerState extends ChangeNotifier {
 
   static const int practicalSlotCount = 3;
   static const int defaultPracticalDegree = 35;
+
   /// The requested layout: 30 marks for the theory split into two questions of
   /// 15 marks each, and 70 marks for the practical section.
   static const int defaultTheoryDegree = 30;
@@ -137,8 +140,7 @@ class ExamComposerState extends ChangeNotifier {
   }
 
   /// Restores the official spacing (100 %) with one tap.
-  void resetLineSpacing() =>
-      setLineSpacingPercent(ExamPaperTypography.officialLineSpacingPercent);
+  void resetLineSpacing() => setLineSpacingPercent(ExamPaperTypography.officialLineSpacingPercent);
 
   // ------------------------------------------------------------------ info ---
 
@@ -221,8 +223,7 @@ class ExamComposerState extends ChangeNotifier {
   bool isSelected(QuestionKind kind, String id) =>
       (_selected[kind] ?? const <String>{}).contains(id);
 
-  bool isInstructionCustomized(QuestionKind kind) =>
-      _customizedInstructions[kind] ?? false;
+  bool isInstructionCustomized(QuestionKind kind) => _customizedInstructions[kind] ?? false;
 
   String instructionOf(QuestionKind kind) =>
       _instructions[kind] ?? defaultTheoryInstruction(kind, selectionOf(kind).length);
@@ -255,8 +256,10 @@ class ExamComposerState extends ChangeNotifier {
   }
 
   void setAnswerLineCount(QuestionKind kind, int? count) {
-    final safe = (count ?? ExamTheoryQuestion.defaultAnswerLineCount)
-        .clamp(1, ExamTheoryQuestion.maxAnswerLineCount);
+    final safe = (count ?? ExamTheoryQuestion.defaultAnswerLineCount).clamp(
+      1,
+      ExamTheoryQuestion.maxAnswerLineCount,
+    );
     _answerLines[kind] = safe;
     notifyListeners();
   }
@@ -300,7 +303,7 @@ class ExamComposerState extends ChangeNotifier {
     return <ExamTheoryItem>[
       for (final ExamQuestionOption option in options)
         if (option.question.kind == kind && selection.contains(option.id))
-          ExamTheoryItem.fromQuestion(option.question, id: option.id),
+          _itemOverrides[option.id] ?? ExamTheoryItem.fromQuestion(option.question, id: option.id),
     ];
   }
 
@@ -321,8 +324,10 @@ class ExamComposerState extends ChangeNotifier {
     for (final QuestionKind kind in ExamTheoryQuestion.kinds) theoryOf(kind),
   ];
 
-  int get theoryItemCount =>
-      ExamTheoryQuestion.kinds.fold<int>(0, (int sum, QuestionKind kind) => sum + selectedItems(kind).length);
+  int get theoryItemCount => ExamTheoryQuestion.kinds.fold<int>(
+    0,
+    (int sum, QuestionKind kind) => sum + selectedItems(kind).length,
+  );
 
   // ------------------------------------------------------------- practical ---
 
@@ -333,10 +338,7 @@ class ExamComposerState extends ChangeNotifier {
       return;
     }
     if (drawing == null) {
-      practical[index] = ExamPracticalQuestion(
-        prompt: '',
-        degree: practical[index].degree,
-      );
+      practical[index] = ExamPracticalQuestion(prompt: '', degree: practical[index].degree);
     } else {
       practical[index] = ExamPracticalQuestion(
         prompt: defaultPracticalPrompt(drawing.title),
@@ -424,6 +426,181 @@ class ExamComposerState extends ChangeNotifier {
     return buildPaperWith(current).issues;
   }
 
+  // Editing is local to the draft: the bundled curriculum never changes.
+  final Map<String, ExamTheoryItem> _itemOverrides = <String, ExamTheoryItem>{};
+
+  void editItem(ExamTheoryItem item) {
+    if (!options.any((option) => option.id == item.id && option.question.kind == item.kind)) return;
+    _itemOverrides[item.id] = item;
+    notifyListeners();
+  }
+
+  void selectItems(QuestionKind kind, Iterable<String> ids, {bool replace = false}) {
+    final known = optionsOf(kind).map((option) => option.id).toSet();
+    final selection = _selected.putIfAbsent(kind, () => <String>{});
+    if (replace) selection.clear();
+    selection.addAll(ids.where(known.contains));
+    if (!isInstructionCustomized(kind)) {
+      _instructions[kind] = defaultTheoryInstruction(kind, selection.length);
+    }
+    notifyListeners();
+  }
+
+  /// Random selection, but selected items always render in curriculum order.
+  void generateBalancedExam({Set<String>? unitIds, Random? random, int perKind = 5}) {
+    final rng = random ?? Random();
+    for (final kind in ExamTheoryQuestion.kinds) {
+      final pool =
+          optionsOf(
+              kind,
+            ).where((option) => unitIds == null || unitIds.contains(option.unitId)).toList()
+            ..shuffle(rng);
+      _selected[kind] = pool.take(perKind).map((option) => option.id).toSet();
+      _customizedInstructions[kind] = false;
+      _instructions[kind] = defaultTheoryInstruction(kind, _selected[kind]!.length);
+    }
+    final pool =
+        drawings.where((drawing) => unitIds == null || unitIds.contains(drawing.unitId)).toList()
+          ..shuffle(rng);
+    for (var i = 0; i < practical.length; i++) {
+      if (i < pool.length) {
+        practical[i] = ExamPracticalQuestion(
+          prompt: defaultPracticalPrompt(pool[i].title),
+          degree: practical[i].degree,
+          drawingId: pool[i].id,
+          drawingTitle: pool[i].title,
+        );
+      }
+    }
+    notifyListeners();
+  }
+
+  /// Complete draft snapshot, including unfinished/invalid fields. Storing only
+  /// [paper] would silently lose a teacher's work before the paper is complete.
+  Map<String, dynamic> toDraft() => <String, dynamic>{
+    'version': 1,
+    'schoolName': schoolName,
+    'gradeLabel': gradeLabel,
+    'sectionName': sectionName,
+    'teacherName': teacherName,
+    'academicYear': academicYear,
+    'term': term.name,
+    'round': round.name,
+    'font': font.name,
+    'headerFontSize': headerFontSize,
+    'bodyFontSize': bodyFontSize,
+    'headingFontSize': headingFontSize,
+    'lineSpacingPercent': lineSpacingPercent,
+    'theoryDegree': theoryDegree,
+    'practicalDegree': practicalDegree,
+    'theoryHeader': theoryHeader,
+    'practicalHeader': practicalHeader,
+    'selection': <String, dynamic>{
+      for (final kind in ExamTheoryQuestion.kinds) kind.name: selectionOf(kind).toList(),
+    },
+    'instructions': <String, dynamic>{
+      for (final kind in ExamTheoryQuestion.kinds) kind.name: instructionOf(kind),
+    },
+    'degrees': <String, dynamic>{
+      for (final kind in ExamTheoryQuestion.kinds) kind.name: degreeOf(kind),
+    },
+    'customized': <String, dynamic>{
+      for (final kind in ExamTheoryQuestion.kinds) kind.name: isInstructionCustomized(kind),
+    },
+    'answerLines': <String, dynamic>{
+      for (final kind in ExamTheoryQuestion.kinds) kind.name: answerLineCountOf(kind),
+    },
+    'practical': <dynamic>[
+      for (final q in practical)
+        <String, dynamic>{
+          'prompt': q.prompt,
+          'degree': q.degree,
+          'drawingId': q.drawingId,
+          'drawingTitle': q.drawingTitle,
+        },
+    ],
+    'overrides': <dynamic>[
+      for (final item in _itemOverrides.values)
+        <String, dynamic>{
+          'id': item.id,
+          'kind': item.kind.name,
+          'prompt': item.prompt,
+          'options': item.options,
+        },
+    ],
+  };
+
+  void restoreDraft(Map<String, dynamic> draft) {
+    String text(String key, String fallback) =>
+        draft[key] is String ? draft[key] as String : fallback;
+    int? number(String key, int? fallback) =>
+        draft.containsKey(key) ? (draft[key] as num?)?.toInt() : fallback;
+    Map<String, dynamic> map(String key) =>
+        draft[key] is Map ? Map<String, dynamic>.from(draft[key] as Map) : <String, dynamic>{};
+    schoolName = text('schoolName', schoolName);
+    gradeLabel = text('gradeLabel', gradeLabel);
+    sectionName = text('sectionName', sectionName);
+    teacherName = text('teacherName', teacherName);
+    academicYear = text('academicYear', academicYear);
+    term = ExamTerm.values.where((v) => v.name == draft['term']).firstOrNull ?? term;
+    round = ExamRound.values.where((v) => v.name == draft['round']).firstOrNull ?? round;
+    font = ExamPaperFont.values.where((v) => v.name == draft['font']).firstOrNull ?? font;
+    headerFontSize = number('headerFontSize', headerFontSize);
+    bodyFontSize = number('bodyFontSize', bodyFontSize);
+    headingFontSize = number('headingFontSize', headingFontSize);
+    lineSpacingPercent = number('lineSpacingPercent', lineSpacingPercent);
+    theoryDegree = number('theoryDegree', theoryDegree);
+    practicalDegree = number('practicalDegree', practicalDegree);
+    theoryHeader = text('theoryHeader', theoryHeader);
+    practicalHeader = text('practicalHeader', practicalHeader);
+    for (final kind in ExamTheoryQuestion.kinds) {
+      final ids = map('selection')[kind.name];
+      final known = optionsOf(kind).map((option) => option.id).toSet();
+      _selected[kind] = ids is List
+          ? ids.whereType<String>().where(known.contains).toSet()
+          : <String>{};
+      _instructions[kind] =
+          map('instructions')[kind.name] as String? ??
+          defaultTheoryInstruction(kind, _selected[kind]!.length);
+      _degrees[kind] = (map('degrees')[kind.name] as num?)?.toInt();
+      _customizedInstructions[kind] = map('customized')[kind.name] == true;
+      _answerLines[kind] =
+          ((map('answerLines')[kind.name] as num?)?.toInt() ??
+                  ExamTheoryQuestion.defaultAnswerLineCount)
+              .clamp(1, ExamTheoryQuestion.maxAnswerLineCount);
+    }
+    final slots = draft['practical'];
+    if (slots is List) {
+      for (var i = 0; i < practical.length && i < slots.length; i++) {
+        final q = Map<String, dynamic>.from(slots[i] as Map);
+        practical[i] = ExamPracticalQuestion(
+          prompt: q['prompt'] as String? ?? '',
+          degree: (q['degree'] as num?)?.toInt() ?? 0,
+          drawingId: q['drawingId'] as String?,
+          drawingTitle: q['drawingTitle'] as String?,
+        );
+      }
+    }
+    _itemOverrides.clear();
+    final overrides = draft['overrides'];
+    if (overrides is List) {
+      for (final raw in overrides.whereType<Map>()) {
+        final id = raw['id'];
+        final option = options.where((v) => v.id == id).firstOrNull;
+        if (option != null) {
+          _itemOverrides[option.id] = ExamTheoryItem(
+            id: option.id,
+            kind: option.question.kind,
+            prompt: raw['prompt'] as String? ?? option.question.prompt,
+            options:
+                (raw['options'] as List?)?.whereType<String>().toList() ?? option.question.options,
+          );
+        }
+      }
+    }
+    notifyListeners();
+  }
+
   // ----------------------------------------------------------- question bank ---
 
   /// The current selection as a bank entry, ready to be stored.
@@ -457,9 +634,7 @@ class ExamComposerState extends ChangeNotifier {
   /// Restores a stored group; ids that no longer exist in the curriculum are
   /// ignored instead of breaking the paper.
   void applyBankEntry(ExamQuestionBankEntry entry) {
-    final known = <String>{
-      for (final ExamQuestionOption option in options) option.id,
-    };
+    final known = <String>{for (final ExamQuestionOption option in options) option.id};
     for (final QuestionKind kind in ExamTheoryQuestion.kinds) {
       _selected[kind] = <String>{
         for (final String id in entry.selection[kind.name] ?? const <String>[])

@@ -9,6 +9,7 @@ import '../../../domain/services/exam_paper_formatter.dart';
 import '../../state/exam_composer_state.dart';
 import 'exam_composer_controllers.dart';
 import 'exam_panel_parts.dart';
+import 'exam_bank_picker.dart';
 
 /// Third step: the three theoretical questions, one screen at a time, in the
 /// official order (true/false → choice → enumeration).
@@ -68,10 +69,8 @@ class ExamTheoryPanel extends StatelessWidget {
                     fieldKey: ValueKey<String>('exam-degree-${kind.name}'),
                     label: 'درجة السؤال',
                     controller: controllers.degrees[kind]!,
-                    onChanged: () => state.setDegree(
-                      kind,
-                      parseIntegerDigits(controllers.degrees[kind]!.text),
-                    ),
+                    onChanged: () =>
+                        state.setDegree(kind, parseIntegerDigits(controllers.degrees[kind]!.text)),
                   );
                   if (kind != QuestionKind.open) {
                     return degree;
@@ -111,6 +110,64 @@ class ExamTheoryPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.lg),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.xs,
+          children: <Widget>[
+            FilledButton.tonalIcon(
+              key: ValueKey<String>('open-bank-${kind.name}'),
+              onPressed: () =>
+                  showExamBankPicker(context, state, kind, () => controllers.syncFrom(state)),
+              icon: const Icon(Icons.library_add_outlined),
+              label: const Text('اختيار / استبدال من البنك'),
+            ),
+            TextButton(
+              onPressed: () {
+                state.selectItems(kind, options.map((option) => option.id));
+                controllers.syncFrom(state);
+              },
+              child: const Text('تحديد الكل'),
+            ),
+            TextButton(
+              onPressed: () {
+                state.selectItems(kind, const <String>[], replace: true);
+                controllers.syncFrom(state);
+              },
+              child: const Text('إلغاء التحديد'),
+            ),
+          ],
+        ),
+        if (selected.isNotEmpty) ...<Widget>[
+          const SizedBox(height: AppSpacing.md),
+          ExamPanelCard(
+            title: 'الفقرات المختارة — معاينة وتحرير',
+            child: Column(
+              children: <Widget>[
+                for (final item in state.selectedItems(kind))
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(item.prompt),
+                    subtitle: item.options.isEmpty ? null : Text(item.options.join(' / ')),
+                    trailing: Wrap(
+                      children: <Widget>[
+                        IconButton(
+                          tooltip: 'تحرير الفقرة',
+                          icon: const Icon(Icons.edit_outlined),
+                          onPressed: () => editExamItem(context, state, item),
+                        ),
+                        IconButton(
+                          tooltip: 'إزالة الفقرة',
+                          icon: const Icon(Icons.delete_outline),
+                          onPressed: () => _toggle(kind, item.id),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: AppSpacing.md),
         ExamPanelCard(
           title: 'محتوى السؤال',
           subtitle: options.isEmpty
@@ -140,10 +197,7 @@ class ExamTheoryPanel extends StatelessWidget {
                             options[i].question.prompt,
                             style: theme.textTheme.bodyMedium,
                           ),
-                          subtitle: Text(
-                            _subtitle(options[i]),
-                            style: theme.textTheme.labelSmall,
-                          ),
+                          subtitle: Text(_subtitle(options[i]), style: theme.textTheme.labelSmall),
                           onChanged: (bool? value) => _toggle(kind, options[i].id),
                         ),
                       ],
@@ -188,10 +242,7 @@ class ExamTheoryPanel extends StatelessWidget {
         key: const ValueKey<String>('exam-theory-header'),
         controller: controllers.theoryHeader,
         maxLines: null,
-        decoration: const InputDecoration(
-          labelText: 'نص العنوان',
-          border: OutlineInputBorder(),
-        ),
+        decoration: const InputDecoration(labelText: 'نص العنوان', border: OutlineInputBorder()),
         onChanged: state.setTheoryHeader,
       ),
     );
@@ -207,9 +258,7 @@ class ExamTheoryPanel extends StatelessWidget {
           ChoiceChip(
             key: ValueKey<String>('exam-theory-tab-$i'),
             selected: i == index,
-            label: Text(
-              '${examQuestionNumber(i)} ${theoryKindLabel(ExamTheoryQuestion.kinds[i])}',
-            ),
+            label: Text('${examQuestionNumber(i)} ${theoryKindLabel(ExamTheoryQuestion.kinds[i])}'),
             onSelected: (_) {
               if (i != index) {
                 onIndexChanged(i);
