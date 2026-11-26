@@ -49,7 +49,10 @@ class QuestionPdfBuilder {
       bold: ArabicPdfFont(boldFont),
     );
     // Slightly widen the font's narrow default space without shrinking text.
-    final bodyStyle = pw.TextStyle(fontSize: settings.bodyFontSize.toDouble(), wordSpacing: 1.5);
+    final bodyStyle = pw.TextStyle(
+      fontSize: settings.bodyFontSize.toDouble(), wordSpacing: 1.5,
+      lineSpacing: settings.compactSpacing ? -settings.bodyFontSize * 0.08 : 0.0,
+    );
     final headingStyle = pw.TextStyle(
       fontSize: settings.headingFontSize.toDouble(),
       fontWeight: pw.FontWeight.bold,
@@ -77,11 +80,33 @@ class QuestionPdfBuilder {
               padding: const pw.EdgeInsets.only(bottom: 3),
               child: pw.Align(
                 alignment: pw.Alignment.center,
-                child: pw.Text('أسئلة الامتحان - $gradeTitle', style: headingStyle),
+                child: pw.Text(
+                  '${settings.mode == StudentPrintMode.summary ? 'ملخص الطالب' : 'أسئلة الامتحان'} - $gradeTitle',
+                  style: headingStyle,
+                ),
               ),
             ),
           ];
-          for (final section in plan.sections) {
+          if (settings.mode == StudentPrintMode.summary) {
+            for (final unit in plan.units) {
+              content.add(pw.NewPage(freeSpace: settings.headingFontSize * 1.6 + settings.bodyFontSize * 1.8));
+              content.add(pw.Text(unit.title, style: headingStyle));
+              for (final topic in unit.topics) {
+                content.add(pw.NewPage(freeSpace: settings.headingFontSize * 1.6 + settings.bodyFontSize * 1.8));
+                content.add(pw.Text(topic.title, style: headingStyle));
+                for (final text in <String>[
+                  ...topic.bullets,
+                  if (topic.listTitle != null && topic.listTitle!.trim().isNotEmpty) topic.listTitle!,
+                  ...topic.listItems,
+                  for (final method in topic.methods) ...<String>[method.title, ...method.bullets],
+                ]) {
+                  if (text.trim().isNotEmpty) {
+                    content.add(pw.Text(text, style: bodyStyle, textAlign: pw.TextAlign.right, overflow: pw.TextOverflow.span));
+                  }
+                }
+              }
+            }
+          } else for (final section in plan.sections) {
             // Keep a type heading together with the first question line, even
             // when the user chooses larger text. Unit names are not printed.
             content.add(

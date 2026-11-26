@@ -83,6 +83,8 @@ class SavedExamArchive {
 abstract class SavedExamStore {
   List<SavedExamPaper> read();
   Future<void> write(List<SavedExamPaper> papers);
+  /// The raw archive includes recovery records which the normal view cannot open.
+  String exportArchive() => encode(read());
   List<String> get loadWarnings => const [];
   bool get isReadOnly => false;
 
@@ -98,6 +100,13 @@ class SharedPrefsSavedExamStore extends SavedExamStore {
   static const String storageKey = 'mirsam.saved-exams.v1';
   final SharedPreferences _prefs;
   SavedExamArchive get _archive => SavedExamArchive.decode(_prefs.get(storageKey));
+  @override
+  String exportArchive() {
+    final raw = _prefs.get(storageKey);
+    if (raw == null) return SavedExamStore.encode(const []);
+    if (raw is! String) throw StateError('Unsupported archive storage type');
+    return raw;
+  }
   @override
   List<String> get loadWarnings => _archive.warnings;
   @override
@@ -138,6 +147,8 @@ class UnavailableSavedExamStore extends SavedExamStore {
   List<String> get loadWarnings => <String>[warning];
   @override
   List<SavedExamPaper> read() => const <SavedExamPaper>[];
+  @override
+  String exportArchive() => throw StateError(warning);
   @override
   Future<void> write(List<SavedExamPaper> papers) => Future<void>.error(StateError(warning));
 }

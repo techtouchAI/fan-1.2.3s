@@ -21,15 +21,54 @@ class ExamQuestionOption {
   /// (`q1` … `q9` repeat in every unit), so the unit id is part of the key.
   /// Selections and widget keys rely on this being unique across the grade.
   String get id => '$unitId:${question.id}';
+
+  bool get isSupplemental => question.id.startsWith('topic-') || question.id.startsWith('curated-');
+  bool get isCurated => question.id.startsWith('curated-');
 }
 
 /// Offered questions of every kind, in curriculum order: units in their
 /// document order, questions in the order of the source file.
 List<ExamQuestionOption> examQuestionOptions(Iterable<LearningUnit> units) {
   final options = <ExamQuestionOption>[];
-  for (final LearningUnit unit in _orderedUnits(units)) {
+  final ordered = _orderedUnits(units);
+  for (final LearningUnit unit in ordered) {
     for (final Question question in unit.questions) {
       options.add(ExamQuestionOption(question: question, unitId: unit.id, unitTitle: unit.title));
+    }
+  }
+  // Curated questions are offered only by the composer; original quiz content
+  // and its order remain unchanged.
+  for (final unit in ordered) {
+    for (final question in unit.bankQuestions) {
+      options.add(ExamQuestionOption(question: question, unitId: unit.id, unitTitle: unit.title));
+    }
+  }
+  // Source-derived practice supplements, kept separate from the original quiz.
+  // Only verbatim statements are marked true; no distractors or false facts are
+  // invented. IDs are stable across launches and scoped by unit and topic.
+  for (final unit in ordered) {
+    for (final topic in unit.topics) {
+      for (var i = 0; i < topic.bullets.length; i++) {
+        final text = topic.bullets[i].trim();
+        if (text.isEmpty) continue;
+        options.add(ExamQuestionOption(
+          unitId: unit.id, unitTitle: unit.title,
+          question: Question(
+            id: 'topic-${topic.id}-statement-$i', kind: QuestionKind.trueFalse,
+            prompt: text, boolAnswer: true,
+          ),
+        ));
+      }
+      final source = <String>[...topic.bullets, ...topic.listItems];
+      if (source.any((text) => text.trim().isNotEmpty) && topic.title.trim().isNotEmpty) {
+        options.add(ExamQuestionOption(
+          unitId: unit.id, unitTitle: unit.title,
+          question: Question(
+            id: 'topic-${topic.id}-explain', kind: QuestionKind.open,
+            prompt: 'أهم المعلومات الواردة في موضوع ${topic.title}.', textAnswer: source.join('\n'),
+          ),
+        ));
+      }
     }
   }
   return List<ExamQuestionOption>.unmodifiable(options);

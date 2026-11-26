@@ -32,6 +32,8 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
   bool _initialized = false;
   bool _printing = false;
   bool _includeAnswers = true;
+  bool _compactSpacing = false;
+  StudentPrintMode _mode = StudentPrintMode.questions;
   final Set<QuestionKind> _kinds = QuestionKind.values.toSet();
   QuestionPrintFont _font = QuestionPrintFont.plex;
   final _bodySize = TextEditingController(text: '${QuestionPrintSettings.defaultBodyFontSize}');
@@ -45,7 +47,8 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
     final state = AppScope.of(context);
     if (!_initialized || _selectionGrade != state.gradeId) {
       _selectionGrade = state.gradeId;
-      _selectedIds = printableUnits(state.visibleUnits).map((unit) => unit.id).toSet();
+      _selectedIds = printableUnits(state.visibleUnits, includeTopics: _mode == StudentPrintMode.summary)
+          .map((unit) => unit.id).toSet();
       _initialized = true;
     }
   }
@@ -69,6 +72,8 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
       bodyFontSize: body!,
       headingFontSize: heading!,
       includeAnswers: _includeAnswers,
+      mode: _mode,
+      compactSpacing: _compactSpacing,
     );
   }
 
@@ -100,7 +105,7 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
     final state = AppScope.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final units = printableUnits(state.visibleUnits);
+    final units = printableUnits(state.visibleUnits, includeTopics: _mode == StudentPrintMode.summary);
     final settings = _settings;
     final plan = QuestionPrintPlan.fromSelection(
       units,
@@ -111,7 +116,7 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('طباعة أسئلة الامتحان'),
+        title: const Text('ملخص للطالب'),
         actions: const <Widget>[TextScaleControls()],
       ),
       body: ListView(
@@ -124,6 +129,15 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
               children: <Widget>[
                 const SizedBox(height: AppSpacing.md),
                 _PrintIntro(gradeTitle: state.gradeTitle),
+                const SizedBox(height: AppSpacing.md),
+                SegmentedButton<StudentPrintMode>(
+                  segments: const <ButtonSegment<StudentPrintMode>>[
+                    ButtonSegment(value: StudentPrintMode.questions, label: Text('أسئلة وأجوبة')),
+                    ButtonSegment(value: StudentPrintMode.summary, label: Text('ملخص فقط')),
+                  ],
+                  selected: <StudentPrintMode>{_mode},
+                  onSelectionChanged: _printing ? null : (value) => setState(() => _mode = value.first),
+                ),
                 const SizedBox(height: AppSpacing.xl),
                 if (units.isEmpty)
                   const EmptyState(
@@ -132,6 +146,7 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
                     message: 'لا توجد وحدات تحتوي على أسئلة في هذا الصف.',
                   )
                 else ...<Widget>[
+                  if (_mode == StudentPrintMode.questions) ...<Widget>[
                   SectionHeader(title: 'أنماط الأسئلة الرسمية', accent: scheme.primary),
                   Wrap(
                     spacing: AppSpacing.sm,
@@ -170,6 +185,7 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
                         ? null
                         : (value) => setState(() => _includeAnswers = value),
                   ),
+                  ],
                   const SizedBox(height: AppSpacing.lg),
                   SectionHeader(
                     title: 'اختر الوحدات',
@@ -190,7 +206,7 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
                         label: const Text('تحديد الكل'),
                       ),
                       TextButton(
-                        onPressed: _printing || plan.isEmpty
+                        onPressed: _printing || _selectedIds.isEmpty
                             ? null
                             : () => setState(_selectedIds.clear),
                         child: const Text('إلغاء التحديد'),
@@ -213,7 +229,9 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
                             controlAffinity: ListTileControlAffinity.leading,
                             title: Text(units[i].title, style: theme.textTheme.titleMedium),
                             subtitle: Text(
-                              '${toArabicDigits('${units[i].questions.length}')} سؤالاً',
+                              _mode == StudentPrintMode.summary
+                                  ? '${toArabicDigits('${units[i].topics.length}')} موضوعاً'
+                                  : '${toArabicDigits('${units[i].questions.length}')} سؤالاً',
                               style: theme.textTheme.labelMedium,
                             ),
                             value: _selectedIds.contains(units[i].id),
@@ -236,6 +254,12 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
                     title: 'إعدادات الطباعة',
                     subtitle: 'تؤثر هذه الإعدادات على الورقة فقط، لا على خط التطبيق.',
                     accent: scheme.primary,
+                  ),
+                  SwitchListTile(
+                    key: const ValueKey<String>('print-compact-spacing'),
+                    title: const Text('تقليل التباعد بين الأسطر'),
+                    value: _compactSpacing,
+                    onChanged: _printing ? null : (value) => setState(() => _compactSpacing = value),
                   ),
                   _PrintSettings(
                     font: _font,
@@ -264,6 +288,7 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
               units,
               _selectedIds,
               settings: currentSettings,
+              allowedKinds: _kinds,
             );
             _print(currentPlan, state.gradeTitle);
           }
@@ -298,10 +323,10 @@ class _PrintIntro extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('أسئلة الامتحان — $gradeTitle', style: theme.textTheme.titleLarge),
+                Text('ملخص للطالب — $gradeTitle', style: theme.textTheme.titleLarge),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'تُطبع الأسئلة مع إجاباتها: الصح والخطأ، ثم الاختيارات، ثم التعداد، دون أسماء الوحدات.',
+                  'اختر أسئلة وأجوبة أو ملخص الموضوعات، ثم حدد الوحدات وإعدادات الطباعة.',
                   style: theme.textTheme.bodyMedium,
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -495,6 +520,8 @@ class _PrintBar extends StatelessWidget {
                           ? 'اختر وحدة للطباعة'
                           : !settingsValid
                           ? 'أدخل أحجام خط صحيحة'
+                          : plan.settings.mode == StudentPrintMode.summary
+                          ? '${toArabicDigits('${plan.units.length}')} وحدة'
                           : '${toArabicDigits('${plan.units.length}')} وحدة • '
                                 '${toArabicDigits('${plan.questionCount}')} سؤالاً',
                       style: theme.textTheme.labelLarge,

@@ -149,7 +149,8 @@ void main() {
         for (final LearningUnit unit in units)
           for (final Question question in unit.questions) '${unit.id}:${question.id}',
       ];
-      expect(options.map((ExamQuestionOption option) => option.id), expected);
+      expect(options.take(expected.length).map((ExamQuestionOption option) => option.id), expected);
+      expect(options.length, greaterThan(expected.length));
       expect(
         options.map((ExamQuestionOption option) => option.unitTitle).toSet().length,
         units.length,

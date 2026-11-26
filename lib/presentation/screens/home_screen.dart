@@ -608,8 +608,8 @@ class _ToolActions extends StatelessWidget {
       ),
       _ToolActionCard(
         key: const ValueKey<String>('open-question-printer'),
-        title: 'طباعة أسئلة الامتحان',
-        subtitle: 'اختر الوحدات واطبع أسئلتها مع الإجابات',
+        title: 'ملخص للطالب',
+        subtitle: 'اطبع أسئلة وأجوبة أو ملخص الموضوعات',
         icon: Icons.print_outlined,
         accent: scheme.secondary,
         onTap: () => AppRoutes.openQuestionPrinting(context),

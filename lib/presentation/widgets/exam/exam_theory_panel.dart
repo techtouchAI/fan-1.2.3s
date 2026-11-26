@@ -223,11 +223,13 @@ class ExamTheoryPanel extends StatelessWidget {
   }
 
   static String _subtitle(ExamQuestionOption option) {
-    final Question question = option.question;
-    if (question.kind == QuestionKind.choice && question.options.isNotEmpty) {
-      return '${option.unitTitle} • ${question.options.join(' / ')}';
-    }
-    return option.unitTitle;
+    final question = option.question;
+    return <String>[
+      option.unitTitle,
+      if (option.isSupplemental) 'مُعدّ من محتوى الموضوع',
+      if (question.kind == QuestionKind.choice && question.options.isNotEmpty)
+        question.options.join(' / '),
+    ].join(' • ');
   }
 
   /// The printable heading of the theoretical section; the teacher can edit

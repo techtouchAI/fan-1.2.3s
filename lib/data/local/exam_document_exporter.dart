@@ -50,7 +50,7 @@ abstract final class ExamDocumentExporter {
       suggestedName: name,
       acceptedTypeGroups: <XTypeGroup>[
         XTypeGroup(
-          label: extension == 'png' ? 'PNG Image' : 'Microsoft Word',
+          label: extension == 'png' ? 'PNG Image' : extension == 'json' ? 'JSON Backup' : 'Microsoft Word',
           extensions: <String>[extension],
         ),
       ],
@@ -90,6 +90,25 @@ abstract final class ExamDocumentExporter {
     }
 
     return _saveAs(bytes, safeName, 'docx');
+  }
+
+  /// Save or share a restorable JSON archive, not a rendered document.
+  static Future<ExamExportResult> exportBackup(Uint8List bytes) async {
+    const name = 'mirsam-saved-exams-backup.json';
+    if (!_isMobile) return _saveAs(bytes, name, 'json');
+    final directory = await getTemporaryDirectory();
+    final file = File('${directory.path}${Platform.pathSeparator}$name');
+    await file.writeAsBytes(bytes, flush: true);
+    final share = await Share.shareXFiles(<XFile>[
+      XFile(file.path, mimeType: 'application/json'),
+    ], subject: name);
+    return ExamExportResult(
+      status: share.status == ShareResultStatus.dismissed
+          ? ExamExportStatus.cancelled : ExamExportStatus.handedOff,
+      message: share.status == ShareResultStatus.dismissed
+          ? 'أُلغيت المشاركة' : 'تم تجهيز النسخة الاحتياطية للمشاركة',
+      path: file.path, shared: true,
+    );
   }
 
   /// Save/share the current A4 preview page without mislabelling it as DOCX.

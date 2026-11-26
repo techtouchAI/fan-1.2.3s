@@ -282,6 +282,7 @@ class LearningUnit {
     required this.accent,
     required this.topics,
     required this.questions,
+    this.bankQuestions = const <Question>[],
     required this.figures,
     this.plates = const <UnitPlate>[],
     this.glossaryIds = const <String>[],
@@ -299,6 +300,10 @@ class LearningUnit {
   final String accent;
   final List<Topic> topics;
   final List<Question> questions;
+
+  /// Authored, source-backed supplements for the exam composer only. These
+  /// are kept separate from the original self-assessment and its ordering.
+  final List<Question> bankQuestions;
   final List<Figure> figures;
   final List<UnitPlate> plates;
   final List<String> glossaryIds;
@@ -328,7 +333,10 @@ class LearningUnit {
     return 'الوحدة ${_arabicOrdinal(order)}';
   }
 
-  factory LearningUnit.fromJson(Map<String, dynamic> json) {
+  factory LearningUnit.fromJson(
+    Map<String, dynamic> json, {
+    List<Question> bankQuestions = const <Question>[],
+  }) {
     final topics = (json['topics'] as List<dynamic>? ?? const <dynamic>[])
         .map((item) => Topic.fromJson(item as Map<String, dynamic>))
         .toList(growable: false);
@@ -358,6 +366,7 @@ class LearningUnit {
       accent: json['accent'] as String? ?? 'primary',
       topics: topics,
       questions: questions,
+      bankQuestions: List<Question>.unmodifiable(bankQuestions),
       figures: figures,
       plates: plates,
       glossaryIds: _stringList(json['glossary']),
@@ -746,14 +755,18 @@ class Library {
     Map<String, dynamic> lessonsJson,
     Map<String, dynamic> glossaryJson,
     Map<String, dynamic> platesJson,
-    Map<String, dynamic> drawingsJson,
-  ) {
+    Map<String, dynamic> drawingsJson, {
+    Map<String, List<Question>> bankQuestions = const <String, List<Question>>{},
+  }) {
     final sections = (curriculum['sections'] as List<dynamic>? ?? const <dynamic>[])
         .map((item) => ContentSection.fromJson(item as Map<String, dynamic>))
         .toList(growable: false)
       ..sort((a, b) => _sectionWeight(a.kind).compareTo(_sectionWeight(b.kind)));
     final units = (curriculum['units'] as List<dynamic>? ?? const <dynamic>[])
-        .map((item) => LearningUnit.fromJson(item as Map<String, dynamic>))
+        .map((item) {
+          final unit = item as Map<String, dynamic>;
+          return LearningUnit.fromJson(unit, bankQuestions: bankQuestions[unit['id']] ?? const <Question>[]);
+        })
         .toList(growable: false);
     final lessons = (lessonsJson['lessons'] as List<dynamic>? ?? const <dynamic>[])
         .map((item) => LessonPlan.fromJson(item as Map<String, dynamic>))

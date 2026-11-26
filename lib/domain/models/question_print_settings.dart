@@ -18,12 +18,16 @@ enum QuestionPrintFont {
   String get boldAsset => 'assets/fonts/$family-Bold.ttf';
 }
 
+enum StudentPrintMode { questions, summary }
+
 /// Print-only typography. Sizes are in PDF points and do not change the app's
 /// reading settings. Validation is shared by the screen and the PDF builder.
 class QuestionPrintSettings {
   const QuestionPrintSettings({
     this.font = QuestionPrintFont.plex,
     this.includeAnswers = true,
+    this.mode = StudentPrintMode.questions,
+    this.compactSpacing = false,
     this.bodyFontSize = defaultBodyFontSize,
     this.headingFontSize = defaultHeadingFontSize,
   });
@@ -34,6 +38,8 @@ class QuestionPrintSettings {
   static const int maxFontSize = 32;
 
   final bool includeAnswers;
+  final StudentPrintMode mode;
+  final bool compactSpacing;
   final QuestionPrintFont font;
   final int bodyFontSize;
   final int headingFontSize;

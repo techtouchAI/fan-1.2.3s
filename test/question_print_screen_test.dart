@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mirsam/domain/models/progress.dart';
+import 'package:mirsam/domain/models/library.dart';
 import 'package:mirsam/domain/models/question_print_settings.dart';
 import 'package:mirsam/domain/services/question_print_plan.dart';
 import 'package:mirsam/presentation/screens/question_print_screen.dart';
@@ -28,7 +29,7 @@ void main() {
 
   testWidgets('the home page opens the dedicated printing section', (tester) async {
     await pumpApplication(tester, size: const Size(1280, 1600));
-    await tapVisible(tester, find.text('طباعة أسئلة الامتحان'));
+    await tapVisible(tester, find.text('ملخص للطالب'));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(QuestionPrintScreen), findsOneWidget);
     expect(find.text('اختر الوحدات'), findsOneWidget);
@@ -41,7 +42,7 @@ void main() {
       size: const Size(900, 1600),
     );
     final units = state.library.unitsOf('g1');
-    expect(find.text('طباعة أسئلة الامتحان'), findsOneWidget);
+    expect(find.text('ملخص للطالب'), findsOneWidget);
     for (final unit in units) {
       expect(tester.widget<CheckboxListTile>(unitSelector(unit.id)).value, isTrue);
       expect(find.text(unit.title), findsOneWidget);
@@ -160,6 +161,25 @@ void main() {
     await tester.pump();
     expect(printed.single.settings.bodyFontSize, 8);
     expect(printed.single.settings.headingFontSize, 32);
+  });
+
+  testWidgets('mode, compact spacing and question filters reach the printer', (tester) async {
+    final printed = <QuestionPrintPlan>[];
+    await pumpScreen(tester, QuestionPrintScreen(
+      printQuestions: (plan, _) async => printed.add(plan),
+    ), size: const Size(900, 1600));
+    await tapVisible(tester, find.byKey(const ValueKey<String>('print-style-choice')));
+    await tapVisible(tester, find.byKey(const ValueKey<String>('print-compact-spacing')));
+    await tester.tap(printButton);
+    await tester.pump();
+    expect(printed.last.settings.compactSpacing, isTrue);
+    expect(printed.last.sections.map((section) => section.kind), isNot(contains(QuestionKind.choice)));
+    await tapVisible(tester, find.text('ملخص فقط'));
+    await tester.tap(printButton);
+    await tester.pump();
+    expect(printed.last.settings.mode, StudentPrintMode.summary);
+    expect(printed.last.settings.compactSpacing, isTrue);
+    expect(printed.last.units, isNotEmpty);
   });
 
   testWidgets('changing grade resets the selection and excludes the previous grade', (
