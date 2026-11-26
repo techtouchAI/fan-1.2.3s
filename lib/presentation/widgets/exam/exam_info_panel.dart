@@ -6,7 +6,8 @@ import '../../state/exam_composer_state.dart';
 import 'exam_composer_controllers.dart';
 import 'exam_panel_parts.dart';
 
-/// Second step: the fields printed in the header and in the closing line.
+/// Header, exam metadata, teacher signature, and customizable official header
+/// options (directorate, duration, note, score-table toggle).
 class ExamInfoPanel extends StatelessWidget {
   const ExamInfoPanel({
     super.key,
@@ -20,6 +21,7 @@ class ExamInfoPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cfg = state.headerConfig;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -89,7 +91,7 @@ class ExamInfoPanel extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         ExamPanelCard(
           title: 'نوع الامتحان',
-          subtitle: 'الشطر الأول من عنوان الورقة.',
+          subtitle: 'الشطر الأول من عنوان الورقة، مع دعم الفصول والامتحانات الشهرية.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -132,7 +134,7 @@ class ExamInfoPanel extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xs),
               Text(
-                'السنة مأخوذة من تاريخ الهاتف تلقائياً، ويمكن تعديلها.',
+                'السنة مأخوذة من تاريخ الجهاز تلقائياً، ويمكن تعديلها.',
                 style: theme.textTheme.bodySmall,
               ),
             ],
@@ -150,6 +152,113 @@ class ExamInfoPanel extends StatelessWidget {
               border: OutlineInputBorder(),
             ),
             onChanged: state.setTeacherName,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        ExamPanelCard(
+          title: 'تخصيص الترويسة الرسمية وجدول الدرجات',
+          subtitle: 'خيارات إضافية لتطابق القالب المعتمد في مديريتك ومدرستك.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  final dirField = TextField(
+                    key: const ValueKey<String>('exam-directorate'),
+                    controller: controllers.directorate,
+                    decoration: const InputDecoration(
+                      labelText: 'المديرية / الجهة الأعلى (اختياري)',
+                      hintText: 'المديرية العامة لتربية …',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (String v) =>
+                        state.updateHeaderConfig(cfg.copyWith(directorateLine: v)),
+                  );
+                  final durField = TextField(
+                    key: const ValueKey<String>('exam-duration'),
+                    controller: controllers.examDuration,
+                    decoration: const InputDecoration(
+                      labelText: 'زمن الامتحان (اختياري)',
+                      hintText: 'ساعتان / ساعة ونصف',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (String v) =>
+                        state.updateHeaderConfig(cfg.copyWith(examDuration: v)),
+                  );
+                  if (constraints.maxWidth >= 520) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Expanded(flex: 3, child: dirField),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(flex: 2, child: durField),
+                      ],
+                    );
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      dirField,
+                      const SizedBox(height: AppSpacing.md),
+                      durField,
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                key: const ValueKey<String>('exam-custom-title'),
+                controller: controllers.customExamTitle,
+                decoration: const InputDecoration(
+                  labelText: 'عنوان مخصص للامتحان (اختياري)',
+                  hintText: 'اتركه فارغاً لاستخدام العنوان التلقائي أعلاه',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (String v) =>
+                    state.updateHeaderConfig(cfg.copyWith(customExamTitle: v)),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                key: const ValueKey<String>('exam-paper-note'),
+                controller: controllers.paperNote,
+                decoration: const InputDecoration(
+                  labelText: 'ملاحظة أعلى الأسئلة (اختياري)',
+                  hintText: 'مثال: ملاحظة: الإجابة على الورقة نفسها',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (String v) =>
+                    state.updateHeaderConfig(cfg.copyWith(paperNote: v)),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              TextField(
+                key: const ValueKey<String>('exam-closing-wish'),
+                controller: controllers.closingWish,
+                decoration: const InputDecoration(
+                  labelText: 'عبارة التمنيات الختامية',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (String v) =>
+                    state.updateHeaderConfig(cfg.copyWith(closingWish: v)),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              SwitchListTile.adaptive(
+                key: const ValueKey<String>('exam-toggle-score-table'),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('إظهار جدول الدرجات والمصحح والمدقق'),
+                subtitle: const Text('مناسب للامتحانات النهائية ونصف السنة؛ يمكنك إخفاؤه للامتحان الشهري.'),
+                value: cfg.showScoreTable,
+                onChanged: (bool v) =>
+                    state.updateHeaderConfig(cfg.copyWith(showScoreTable: v)),
+              ),
+              SwitchListTile.adaptive(
+                key: const ValueKey<String>('exam-toggle-student-fields'),
+                contentPadding: EdgeInsets.zero,
+                title: const Text('إظهار حقلي الاسم والرقم الامتحاني في الترويسة'),
+                value: cfg.showStudentFields,
+                onChanged: (bool v) =>
+                    state.updateHeaderConfig(cfg.copyWith(showStudentFields: v)),
+              ),
+            ],
           ),
         ),
       ],

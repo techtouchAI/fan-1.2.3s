@@ -4,6 +4,7 @@ import '../../core/theme/dimens.dart';
 import '../../core/utils/arabic_text.dart';
 import '../../core/widgets/app_page.dart';
 import '../../core/widgets/empty_state.dart';
+import '../../domain/models/library.dart';
 import '../state/app_state.dart';
 import '../widgets/text_scale_controls.dart';
 import 'unit_screen.dart';
@@ -24,6 +25,15 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
     final state = AppScope.of(context);
     final theme = Theme.of(context);
     final normQuery = normalizeArabic(_query);
+
+    final availableUnits = <LearningUnit>[
+      ...state.visibleUnits,
+      if (state.introductionUnit != null) state.introductionUnit!,
+      if (state.theatreUnit != null) state.theatreUnit!,
+    ];
+    if (_partFilter != 'all' && !state.visibleUnitIds.contains(_partFilter)) {
+      _partFilter = 'all';
+    }
 
     final filtered = state.visibleGlossary
         .where((term) {
@@ -73,7 +83,7 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
                       selected: _partFilter == 'all',
                       onSelected: (_) => setState(() => _partFilter = 'all'),
                     ),
-                    for (final unit in state.visibleUnits.where(
+                    for (final unit in availableUnits.where(
                       (unit) => state.visibleGlossary.any((term) => term.unitId == unit.id),
                     ))
                       ChoiceChip(

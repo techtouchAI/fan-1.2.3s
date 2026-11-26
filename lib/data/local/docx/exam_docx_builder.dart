@@ -1,11 +1,8 @@
 /// Builds the Word document of an exam paper.
 ///
-/// The output reproduces the official paper of the project page for page: the
-/// three-column header table, the grade table (س1، س2، س3، العملي، المجموع),
-/// the theoretical section in the order true/false → choice → enumeration, the
-/// practical section and the closing line with the teacher's name. Page setup
-/// (A4, 12.7 mm top margin, 12.7 mm sides, right-to-left section) is copied
-/// from the source document.
+/// Reproduces the official Iraqi middle-school art exam layout (`الاول.docx`)
+/// while honoring custom header fields, score-table toggles, page margins,
+/// custom bank items, and free-form questions with branches (أ / ب).
 library;
 
 import 'dart:convert';
@@ -135,7 +132,6 @@ abstract final class ExamDocxBuilder {
         '</w:styles>';
   }
 
-  /// Escapes text for an XML text node or attribute value.
   static String _escapeXml(String value) {
     return value
         .replaceAll('&', '&amp;')
@@ -146,22 +142,18 @@ abstract final class ExamDocxBuilder {
   }
 }
 
-/// A single styled text run of a paragraph.
 class _Run {
   const _Run(this.text, {required this.size, this.bold = false});
 
   final String text;
-
-  /// Size in half-points, as stored by Word.
   final int size;
   final bool bold;
 }
 
-/// Emits the WordprocessingML of the document body.
 class _DocumentWriter {
   _DocumentWriter(this.paper)
-      : typography = paper.typography,
-        _family = ExamDocxBuilder._escapeXml(paper.typography.font.family);
+    : typography = paper.typography,
+      _family = ExamDocxBuilder._escapeXml(paper.typography.font.family);
 
   final ExamPaper paper;
   final ExamPaperTypography typography;
@@ -179,8 +171,25 @@ class _DocumentWriter {
       ..write('<w:body>');
     _writeHeaderTable();
     _writeRule();
-    _writeGradeTable();
-    _writeRule();
+    if (paper.headerConfig.paperNote.trim().isNotEmpty) {
+      _buffer.write(
+        _paragraphXml(
+          <_Run>[
+            _Run(
+              paper.headerConfig.paperNote.trim(),
+              size: typography.bodyHalfPoints,
+              bold: true,
+            ),
+          ],
+          center: true,
+          after: 40,
+        ),
+      );
+    }
+    if (paper.headerConfig.showScoreTable) {
+      _writeGradeTable();
+      _writeRule();
+    }
     _writeTheorySection();
     _writePracticalSection();
     _writeRule();
@@ -189,8 +198,6 @@ class _DocumentWriter {
     _buffer.write('</w:body></w:document>');
     return _buffer.toString();
   }
-
-  // ------------------------------------------------------------------ text ---
 
   String _runXml(_Run run) {
     final text = ExamDocxBuilder._escapeXml(_normalizeText(run.text));
@@ -212,18 +219,19 @@ class _DocumentWriter {
     bool center = false,
     bool keepNext = false,
     int after = 0,
+    int indentTwips = 0,
     int? line,
   }) {
-    // A null line means "the spacing chosen for the paper"; the empty
-    // paragraphs that separate the questions always stay compact.
     final spacing = line ?? typography.lineTwips;
     final buffer = StringBuffer('<w:p><w:pPr>');
     if (keepNext) {
       buffer.write('<w:keepNext/>');
     }
-    buffer
-      ..write('<w:bidi/>')
-      ..write('<w:spacing w:after="$after" w:line="$spacing" w:lineRule="auto"/>');
+    buffer.write('<w:bidi/>');
+    if (indentTwips > 0) {
+      buffer.write('<w:ind w:left="$indentTwips"/>');
+    }
+    buffer.write('<w:spacing w:after="$after" w:line="$spacing" w:lineRule="auto"/>');
     if (center) {
       buffer.write('<w:jc w:val="center"/>');
     }
@@ -235,14 +243,11 @@ class _DocumentWriter {
     return buffer.toString();
   }
 
-  /// Newlines cannot appear inside a `w:t`; user text keeps its words.
   static String _normalizeText(String value) {
     return value
         .replaceAll(RegExp(r'[\u0000-\u0008\u000B\u000C\u000E-\u001F]'), '')
         .replaceAll(RegExp(r'\r\n?|\n'), ' ');
   }
-
-  // ---------------------------------------------------------------- tables ---
 
   static const String _noBorders =
       '<w:tblBorders>'
@@ -282,23 +287,25 @@ class _DocumentWriter {
   }
 
   void _writeHeaderTable() {
-    final info = paper.info;
+    final cols = examHeaderColumns(paper);
     final size = typography.headerHalfPoints;
-    final schoolCell = _cellXml(2693, <String>[
-      _paragraphXml(<_Run>[_Run('ادارة', size: size, bold: true)], center: true),
-      _paragraphXml(<_Run>[_Run(info.school, size: size, bold: true)], center: true),
-      _paragraphXml(const <_Run>[], center: true),
-    ]);
-    final examCell = _cellXml(5245, <String>[
-      _paragraphXml(<_Run>[_Run(info.examTitleLine, size: size, bold: true)], center: true),
-      _paragraphXml(<_Run>[_Run(info.yearLine, size: size, bold: true)], center: true),
-      _paragraphXml(<_Run>[_Run('التربية الفنية', size: size, bold: true)], center: true),
-    ]);
-    final studentCell = _cellXml(2977, <String>[
-      _paragraphXml(<_Run>[_Run('الاسم :', size: size, bold: true)]),
-      _paragraphXml(<_Run>[_Run(info.classLine, size: size, bold: true)]),
-      _paragraphXml(<_Run>[_Run('الرقم الامتحاني :', size: size, bold: true)]),
-    ]);
+    final schoolParagraphs = <String>[
+      for (final String line in cols.rightLines)
+        _paragraphXml(<_Run>[_Run(line, size: size, bold: true)], center: true),
+      if (cols.rightLines.length < 3)
+        _paragraphXml(const <_Run>[], center: true),
+    ];
+    final examParagraphs = <String>[
+      for (final String line in cols.centerLines)
+        _paragraphXml(<_Run>[_Run(line, size: size, bold: true)], center: true),
+    ];
+    final studentParagraphs = <String>[
+      for (final String line in cols.leftLines)
+        _paragraphXml(<_Run>[_Run(line, size: size, bold: true)]),
+    ];
+    final schoolCell = _cellXml(2693, schoolParagraphs);
+    final examCell = _cellXml(5245, examParagraphs);
+    final studentCell = _cellXml(2977, studentParagraphs);
     _buffer.write(
       '<w:tbl><w:tblPr><w:bidiVisual/><w:tblW w:w="10915" w:type="dxa"/>'
       '<w:tblInd w:w="-199" w:type="dxa"/>$_noBorders<w:tblLayout w:type="fixed"/>'
@@ -373,8 +380,6 @@ class _DocumentWriter {
     );
   }
 
-  // --------------------------------------------------------------- content ---
-
   void _writeTheorySection() {
     if (!paper.hasTheory) {
       return;
@@ -414,6 +419,47 @@ class _DocumentWriter {
       }
       _buffer.write(_paragraphXml(const <_Run>[], line: 240));
     }
+
+    for (final ExamFreeQuestion free in paper.activeFreeQuestions) {
+      _buffer.write(
+        _paragraphXml(<_Run>[
+          _Run(examFreeQuestionHeading(free, questionIndex), size: bodySize, bold: true),
+        ], keepNext: true),
+      );
+      questionIndex++;
+      final directItems = free.nonEmptyItems;
+      for (var i = 0; i < directItems.length; i++) {
+        _buffer.write(
+          _paragraphXml(<_Run>[
+            _Run('${i + 1}- ${directItems[i]}', size: bodySize),
+          ]),
+        );
+      }
+      for (final ExamQuestionBranch branch in free.activeBranches) {
+        _buffer.write(
+          _paragraphXml(
+            <_Run>[_Run(examBranchHeading(branch), size: bodySize, bold: true)],
+            indentTwips: 180,
+            keepNext: true,
+          ),
+        );
+        final branchItems = branch.nonEmptyItems;
+        for (var i = 0; i < branchItems.length; i++) {
+          _buffer.write(
+            _paragraphXml(
+              <_Run>[_Run('${i + 1}- ${branchItems[i]}', size: bodySize)],
+              indentTwips: 320,
+            ),
+          );
+        }
+      }
+      if (free.answerLineCount > 0) {
+        for (final String line in examNumberedBlankLines(free.answerLineCount)) {
+          _buffer.write(_paragraphXml(<_Run>[_Run(line, size: bodySize)]));
+        }
+      }
+      _buffer.write(_paragraphXml(const <_Run>[], line: 240));
+    }
   }
 
   void _writePracticalSection() {
@@ -431,7 +477,7 @@ class _DocumentWriter {
       final ExamPracticalQuestion question = paper.practical[i];
       _buffer.write(
         _paragraphXml(<_Run>[
-          _Run('${examQuestionNumber(i)}: ${question.prompt.trim()}', size: bodySize),
+          _Run(examPracticalItemText(question, i), size: bodySize),
         ], after: 40),
       );
     }
@@ -439,12 +485,22 @@ class _DocumentWriter {
 
   void _writeFooter() {
     final size = typography.bodyHalfPoints;
+    final cfg = paper.headerConfig;
     final wishes = _cellXml(6000, <String>[
-      _paragraphXml(<_Run>[_Run('تمنياتي لكم بالتوفيق والنجاح', size: size, bold: true)], center: true),
+      _paragraphXml(
+        <_Run>[_Run(cfg.effectiveClosingWish, size: size, bold: true)],
+        center: true,
+      ),
     ]);
     final teacher = _cellXml(4466, <String>[
-      _paragraphXml(<_Run>[_Run('مدرس المادة', size: size, bold: true)], center: true),
-      _paragraphXml(<_Run>[_Run(paper.info.teacherName.trim(), size: size, bold: true)], center: true),
+      _paragraphXml(
+        <_Run>[_Run(cfg.effectiveTeacherTitle, size: size, bold: true)],
+        center: true,
+      ),
+      _paragraphXml(
+        <_Run>[_Run(paper.info.teacherName.trim(), size: size, bold: true)],
+        center: true,
+      ),
     ]);
     _buffer.write(
       '<w:tbl><w:tblPr><w:bidiVisual/><w:tblW w:w="0" w:type="auto"/>'
@@ -455,9 +511,11 @@ class _DocumentWriter {
   }
 
   void _writeSectionProperties() {
+    final m = paper.margins;
     _buffer.write(
       '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'
-      '<w:pgMar w:top="426" w:right="720" w:bottom="720" w:left="720" '
+      '<w:pgMar w:top="${m.topTwips}" w:right="${m.rightTwips}" '
+      'w:bottom="${m.bottomTwips}" w:left="${m.leftTwips}" '
       'w:header="708" w:footer="708" w:gutter="0"/>'
       '<w:cols w:space="708"/><w:bidi/><w:rtlGutter/>'
       '<w:docGrid w:linePitch="360"/></w:sectPr>',

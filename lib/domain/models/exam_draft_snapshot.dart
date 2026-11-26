@@ -2,10 +2,12 @@ import 'dart:convert';
 
 /// Validated persistence boundary, distinct from a *complete* printable paper.
 /// Null/unfinished numbers are valid drafts; wrong JSON types are not.
-/// V1 contains source references; V2 additionally freezes the selected text.
+/// - V1 contains source references.
+/// - V2 freezes the selected text.
+/// - V3 adds `headerConfig`, `margins`, and `freeQuestions` (with `branches`).
 class ExamDraftSnapshot {
   ExamDraftSnapshot._(this._json);
-  static const currentVersion = 2;
+  static const int currentVersion = 3;
   final String _json;
 
   Map<String, dynamic> toJson() => jsonDecode(_json) as Map<String, dynamic>;
@@ -23,6 +25,7 @@ class ExamDraftSnapshot {
     }
 
     bool text(Object? v) => v is String;
+    bool boolean(Object? v) => v is bool;
     bool integer(Object? v) => v == null || v is int;
     bool strings(Object? v) => v is List && v.every((s) => s is String);
     Map object(Object? v, String name) {
@@ -76,7 +79,7 @@ class ExamDraftSnapshot {
           case 'instructions':
             field(map, entry.key as String, text);
           case 'customized':
-            field(map, entry.key as String, (v) => v is bool);
+            field(map, entry.key as String, boolean);
           default:
             field(map, entry.key as String, integer);
         }
@@ -84,8 +87,14 @@ class ExamDraftSnapshot {
     }
     field(value, 'restorationWarnings', strings);
     const enums = <String, Set<String>>{
-      'term': {'midYear', 'endOfYear'},
-      'round': {'first', 'second'},
+      'term': {
+        'firstSemester',
+        'midYear',
+        'secondSemester',
+        'endOfYear',
+        'monthly',
+      },
+      'round': {'first', 'second', 'third'},
       'font': {
         'traditionalArabic',
         'simplifiedArabic',
@@ -94,6 +103,8 @@ class ExamDraftSnapshot {
         'timesNewRoman',
         'amiri',
         'cairo',
+        'tajawal',
+        'almarai',
       },
     };
     for (final entry in enums.entries) {
@@ -103,7 +114,7 @@ class ExamDraftSnapshot {
     }
     if (value.containsKey('practical')) {
       final slots = value['practical'];
-      if (slots is! List || slots.length > 3) {
+      if (slots is! List || slots.length > 5) {
         throw const FormatException('Invalid practical slots');
       }
       for (final raw in slots) {
@@ -114,6 +125,68 @@ class ExamDraftSnapshot {
         field(slot, 'drawingTitle', (v) => v == null || v is String);
       }
     }
+    if (value.containsKey('headerConfig')) {
+      final cfg = object(value['headerConfig'], 'headerConfig');
+      for (final key in <String>[
+        'directorateLine',
+        'administrationLabel',
+        'subjectName',
+        'customExamTitle',
+        'examDuration',
+        'paperNote',
+        'closingWish',
+        'teacherTitle',
+      ]) {
+        field(cfg, key, text);
+      }
+      field(cfg, 'showStudentFields', boolean);
+      field(cfg, 'showScoreTable', boolean);
+    }
+    if (value.containsKey('margins')) {
+      final m = object(value['margins'], 'margins');
+      for (final key in <String>[
+        'topTwips',
+        'rightTwips',
+        'bottomTwips',
+        'leftTwips',
+      ]) {
+        field(m, key, integer);
+      }
+    }
+    if (value.containsKey('freeQuestions')) {
+      final freeList = value['freeQuestions'];
+      if (freeList is! List || freeList.length > 20) {
+        throw const FormatException('Invalid freeQuestions');
+      }
+      final seenFree = <String>{};
+      for (final raw in freeList) {
+        final fq = object(raw, 'freeQuestions');
+        if (fq['id'] is! String ||
+            (fq['id'] as String).isEmpty ||
+            !seenFree.add(fq['id'] as String)) {
+          throw const FormatException('Invalid freeQuestion id');
+        }
+        field(fq, 'title', text);
+        field(fq, 'degree', integer);
+        field(fq, 'choiceNote', text);
+        field(fq, 'items', strings);
+        field(fq, 'answerLineCount', integer);
+        if (fq.containsKey('branches')) {
+          final branches = fq['branches'];
+          if (branches is! List || branches.length > 6) {
+            throw const FormatException('Invalid freeQuestion branches');
+          }
+          for (final rawBranch in branches) {
+            final branch = object(rawBranch, 'branch');
+            field(branch, 'label', text);
+            field(branch, 'prompt', text);
+            field(branch, 'items', strings);
+            field(branch, 'degree', integer);
+          }
+        }
+      }
+    }
+
     final frozen = <String, String>{};
     for (final key in <String>['items', 'overrides']) {
       if (!value.containsKey(key)) continue;
@@ -140,7 +213,7 @@ class ExamDraftSnapshot {
       }
     }
     field(value, 'unresolvedSourceIds', strings);
-    if (version == 2) {
+    if (version >= 2) {
       if (value['items'] is! List) throw const FormatException('Missing frozen items');
       final selection = value['selection'] as Map? ?? const {};
       final unresolved = (value['unresolvedSourceIds'] as List? ?? const []).toSet();

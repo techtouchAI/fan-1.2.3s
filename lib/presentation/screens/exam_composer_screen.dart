@@ -16,6 +16,7 @@ import '../../domain/services/exam_paper_formatter.dart';
 import '../state/app_state.dart';
 import '../state/exam_composer_state.dart';
 import '../widgets/exam/exam_composer_controllers.dart';
+import '../widgets/exam/exam_free_questions_panel.dart';
 import '../widgets/exam/exam_info_panel.dart';
 import '../widgets/exam/exam_practical_panel.dart';
 import '../widgets/exam/exam_review_panel.dart';
@@ -68,6 +69,7 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
   ExamComposerControllers? _controllers;
   int _step = -1;
   bool _preview = false;
+  bool _splitPreview = false;
   String? _savedId;
   SavedExamLibrary? _library;
   String _gradeId = '';
@@ -392,6 +394,14 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
                           selected: <bool>{_preview},
                           onSelectionChanged: (next) => setState(() => _preview = next.first),
                         ),
+                        if (MediaQuery.sizeOf(context).width >= 1080 && !_preview)
+                          FilterChip(
+                            key: const ValueKey<String>('exam-toggle-split-preview'),
+                            selected: _splitPreview,
+                            avatar: const Icon(Icons.vertical_split_outlined, size: 18),
+                            label: const Text('معاينة جانبية حية'),
+                            onSelected: (bool value) => setState(() => _splitPreview = value),
+                          ),
                         Text(
                           'النظري: ${composer.theoryDegree ?? 0} • العملي: ${composer.practicalDegree ?? 0}',
                           style: Theme.of(context).textTheme.labelLarge,
@@ -406,6 +416,29 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
                               composer.typography ?? const ExamPaperTypography(),
                             ),
                             exportImage: widget.exportImage,
+                          )
+                        : (_splitPreview && MediaQuery.sizeOf(context).width >= 1080)
+                        ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: <Widget>[
+                              Expanded(
+                                flex: 6,
+                                child: _steps(context, composer, controllers),
+                              ),
+                              VerticalDivider(
+                                width: 1,
+                                color: Theme.of(context).colorScheme.outlineVariant,
+                              ),
+                              Expanded(
+                                flex: 5,
+                                child: ExamLivePreview(
+                                  paper: composer.buildPaperWith(
+                                    composer.typography ?? const ExamPaperTypography(),
+                                  ),
+                                  exportImage: widget.exportImage,
+                                ),
+                              ),
+                            ],
                           )
                         : _steps(context, composer, controllers),
                   ),
@@ -430,11 +463,18 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
     final panels = <Widget>[
       ExamTypographyPanel(state: composer, controllers: controllers),
       ExamInfoPanel(state: composer, controllers: controllers),
-      ExamTheoryPanel(
-        state: composer,
-        controllers: controllers,
-        index: _theoryIndex,
-        onIndexChanged: (int value) => setState(() => _theoryIndex = value),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          ExamTheoryPanel(
+            state: composer,
+            controllers: controllers,
+            index: _theoryIndex,
+            onIndexChanged: (int value) => setState(() => _theoryIndex = value),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          ExamFreeQuestionsPanel(state: composer),
+        ],
       ),
       ExamPracticalPanel(state: composer, controllers: controllers),
       ExamReviewPanel(state: composer, paper: paper),
@@ -474,6 +514,8 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
                   ),
                   const SizedBox(height: AppSpacing.lg),
                 ],
+                ExamFreeQuestionsPanel(state: composer),
+                const SizedBox(height: AppSpacing.lg),
                 panels[3],
               ] else
                 panels[_step],
@@ -523,8 +565,12 @@ class _ExamComposerScreenState extends State<ExamComposerScreen> {
     final bool last = _preview || _step == examStepTitles.length - 1 || _step == -1;
     final String status = paper == null
         ? (issues.isEmpty ? 'أكمل بيانات الامتحان' : issues.first)
-        : '${toArabicDigits('${paper.theoryItemCount}')} عنصراً نظرياً • '
-              '${toArabicDigits('${paper.practicalCount}')} سؤالاً عملياً';
+        : <String>[
+            '${toArabicDigits('${paper.theoryItemCount}')} عنصراً نظرياً',
+            if (paper.freeQuestionCount > 0)
+              '${toArabicDigits('${paper.freeQuestionCount}')} سؤالاً حراً',
+            '${toArabicDigits('${paper.practicalCount}')} سؤالاً عملياً',
+          ].join(' • ');
     return Container(
       decoration: BoxDecoration(
         color: scheme.surface,

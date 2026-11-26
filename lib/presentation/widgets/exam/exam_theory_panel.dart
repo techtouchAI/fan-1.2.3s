@@ -7,12 +7,12 @@ import '../../../domain/models/exam_paper.dart';
 import '../../../domain/models/library.dart';
 import '../../../domain/services/exam_paper_formatter.dart';
 import '../../state/exam_composer_state.dart';
+import 'exam_bank_picker.dart';
 import 'exam_composer_controllers.dart';
 import 'exam_panel_parts.dart';
-import 'exam_bank_picker.dart';
 
-/// Third step: the three theoretical questions, one screen at a time, in the
-/// official order (true/false → choice → enumeration).
+/// Third step: the three theoretical questions (true/false → choice → enumeration),
+/// plus custom teacher-authored items inside any of the three groups.
 class ExamTheoryPanel extends StatelessWidget {
   const ExamTheoryPanel({
     super.key,
@@ -69,8 +69,10 @@ class ExamTheoryPanel extends StatelessWidget {
                     fieldKey: ValueKey<String>('exam-degree-${kind.name}'),
                     label: 'درجة السؤال',
                     controller: controllers.degrees[kind]!,
-                    onChanged: () =>
-                        state.setDegree(kind, parseIntegerDigits(controllers.degrees[kind]!.text)),
+                    onChanged: () => state.setDegree(
+                      kind,
+                      parseIntegerDigits(controllers.degrees[kind]!.text),
+                    ),
                   );
                   if (kind != QuestionKind.open) {
                     return degree;
@@ -116,10 +118,20 @@ class ExamTheoryPanel extends StatelessWidget {
           children: <Widget>[
             FilledButton.tonalIcon(
               key: ValueKey<String>('open-bank-${kind.name}'),
-              onPressed: () =>
-                  showExamBankPicker(context, state, kind, () => controllers.syncFrom(state)),
+              onPressed: () => showExamBankPicker(
+                context,
+                state,
+                kind,
+                () => controllers.syncFrom(state),
+              ),
               icon: const Icon(Icons.library_add_outlined),
               label: const Text('اختيار / استبدال من البنك'),
+            ),
+            OutlinedButton.icon(
+              key: ValueKey<String>('add-custom-item-${kind.name}'),
+              onPressed: () => _showAddCustomItemDialog(context, kind),
+              icon: const Icon(Icons.add_circle_outline, size: 18),
+              label: const Text('إضافة فقرة مخصصة'),
             ),
             TextButton(
               onPressed: () {
@@ -147,7 +159,15 @@ class ExamTheoryPanel extends StatelessWidget {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(item.prompt),
-                    subtitle: item.options.isEmpty ? null : Text(item.options.join(' / ')),
+                    subtitle: item.isCustom
+                        ? Text(
+                            item.options.isEmpty
+                                ? 'فقرة مخصصة من إعداد المدرس'
+                                : 'فقرة مخصصة • ${item.options.join(' / ')}',
+                          )
+                        : (item.options.isEmpty
+                              ? null
+                              : Text(item.options.join(' / '))),
                     trailing: Wrap(
                       children: <Widget>[
                         IconButton(
@@ -158,7 +178,14 @@ class ExamTheoryPanel extends StatelessWidget {
                         IconButton(
                           tooltip: 'إزالة الفقرة',
                           icon: const Icon(Icons.delete_outline),
-                          onPressed: () => _toggle(kind, item.id),
+                          onPressed: () {
+                            if (item.isCustom) {
+                              state.removeCustomItem(item.id);
+                              controllers.syncFrom(state);
+                            } else {
+                              _toggle(kind, item.id);
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -197,7 +224,10 @@ class ExamTheoryPanel extends StatelessWidget {
                             options[i].question.prompt,
                             style: theme.textTheme.bodyMedium,
                           ),
-                          subtitle: Text(_subtitle(options[i]), style: theme.textTheme.labelSmall),
+                          subtitle: Text(
+                            _subtitle(options[i]),
+                            style: theme.textTheme.labelSmall,
+                          ),
                           onChanged: (bool? value) => _toggle(kind, options[i].id),
                         ),
                       ],
@@ -209,6 +239,84 @@ class ExamTheoryPanel extends StatelessWidget {
         _navigation(context),
       ],
     );
+  }
+
+  Future<void> _showAddCustomItemDialog(
+    BuildContext context,
+    QuestionKind targetKind,
+  ) async {
+    final promptController = TextEditingController();
+    final optionControllers = <TextEditingController>[
+      if (targetKind == QuestionKind.choice) ...<TextEditingController>[
+        TextEditingController(),
+        TextEditingController(),
+        TextEditingController(),
+      ],
+    ];
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: Text('إضافة فقرة مخصصة (${theoryKindLabel(targetKind)})'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              TextField(
+                key: const ValueKey<String>('custom-item-prompt'),
+                controller: promptController,
+                maxLines: 3,
+                minLines: 1,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: targetKind == QuestionKind.trueFalse
+                      ? 'العبارة'
+                      : 'نص الفقرة',
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              if (targetKind == QuestionKind.choice) ...<Widget>[
+                const SizedBox(height: AppSpacing.md),
+                for (var i = 0; i < optionControllers.length; i++) ...<Widget>[
+                  if (i > 0) const SizedBox(height: AppSpacing.sm),
+                  TextField(
+                    key: ValueKey<String>('custom-item-option-$i'),
+                    controller: optionControllers[i],
+                    decoration: InputDecoration(
+                      labelText: 'الخيار ${toArabicDigits('${i + 1}')}',
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            key: const ValueKey<String>('confirm-custom-item'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('إضافة'),
+          ),
+        ],
+      ),
+    );
+
+    final prompt = promptController.text.trim();
+    final options = optionControllers.map((c) => c.text.trim()).toList();
+    promptController.dispose();
+    for (final c in optionControllers) {
+      c.dispose();
+    }
+
+    if (created == true && prompt.isNotEmpty) {
+      state.addCustomItem(targetKind, prompt: prompt, options: options);
+      controllers.syncFrom(state);
+    }
   }
 
   void _toggle(QuestionKind kind, String id) {
@@ -232,20 +340,35 @@ class ExamTheoryPanel extends StatelessWidget {
     ].join(' • ');
   }
 
-  /// The printable heading of the theoretical section; the teacher can edit
-  /// its wording, the degrees stay next to it.
   Widget _theoryHeadingCard(BuildContext context) {
     return ExamPanelCard(
       title: 'عنوان المادة النظرية',
       subtitle:
           'يُطبع: نصك، ثم ____________ والدرجات. إجمالي النظري '
           '${toArabicDigits('${state.theoryDegree ?? 0}')} درجة.',
-      child: TextField(
-        key: const ValueKey<String>('exam-theory-header'),
-        controller: controllers.theoryHeader,
-        maxLines: null,
-        decoration: const InputDecoration(labelText: 'نص العنوان', border: OutlineInputBorder()),
-        onChanged: state.setTheoryHeader,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          TextField(
+            key: const ValueKey<String>('exam-theory-header'),
+            controller: controllers.theoryHeader,
+            maxLines: null,
+            decoration: const InputDecoration(
+              labelText: 'نص العنوان',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: state.setTheoryHeader,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          ExamNumberField(
+            fieldKey: const ValueKey<String>('exam-theory-total'),
+            label: 'درجة القسم النظري',
+            controller: controllers.theoryDegree,
+            onChanged: () => state.setTheoryDegree(
+              parseIntegerDigits(controllers.theoryDegree.text),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -260,7 +383,9 @@ class ExamTheoryPanel extends StatelessWidget {
           ChoiceChip(
             key: ValueKey<String>('exam-theory-tab-$i'),
             selected: i == index,
-            label: Text('${examQuestionNumber(i)} ${theoryKindLabel(ExamTheoryQuestion.kinds[i])}'),
+            label: Text(
+              '${examQuestionNumber(i)} ${theoryKindLabel(ExamTheoryQuestion.kinds[i])}',
+            ),
             onSelected: (_) {
               if (i != index) {
                 onIndexChanged(i);

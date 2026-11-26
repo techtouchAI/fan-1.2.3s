@@ -14,7 +14,7 @@ class CuratedBankTest(unittest.TestCase):
         self.curriculum = json.loads((ROOT / 'assets/content/curriculum.json').read_text())
 
     def test_valid_bank_covers_all_topics(self):
-        self.assertEqual(verify(self.bank, self.curriculum), (28, 56))
+        self.assertEqual(verify(self.bank, self.curriculum), (40, 80))
 
     def test_unknown_evidence_is_rejected(self):
         self.bank['questions'][0]['answerSupport'] = 'not in the source'

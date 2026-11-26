@@ -4,38 +4,49 @@ import '../../../domain/models/exam_paper.dart';
 import '../../../domain/models/library.dart';
 import '../../state/exam_composer_state.dart';
 
-/// Text controllers of the composer, owned by the screen.
-///
-/// Keeping them here — instead of inside the step widgets — means the typed
-/// values survive moving back and forth between the five steps.
+/// Text controllers of the composer, owned by the screen so typed values
+/// survive moving between steps or toggling the A4 preview.
 class ExamComposerControllers {
   ExamComposerControllers(ExamComposerState state)
-      : school = TextEditingController(text: state.schoolName),
-        grade = TextEditingController(text: state.gradeLabel),
-        section = TextEditingController(text: state.sectionName),
-        year = TextEditingController(text: state.academicYear),
-        teacher = TextEditingController(text: state.teacherName),
-        headerSize = TextEditingController(text: '${state.headerFontSize ?? ''}'),
-        bodySize = TextEditingController(text: '${state.bodyFontSize ?? ''}'),
-        headingSize = TextEditingController(text: '${state.headingFontSize ?? ''}'),
-        lineSpacing = TextEditingController(
-          text: '${state.lineSpacingPercent ?? ''}',
-        ),
-        theoryDegree = TextEditingController(text: '${state.theoryDegree ?? ''}'),
-        practicalDegree = TextEditingController(text: '${state.practicalDegree ?? ''}'),
-        theoryHeader = TextEditingController(text: state.theoryHeader),
-        practicalHeader = TextEditingController(text: state.practicalHeader),
-        answerLines = TextEditingController(
-          text: '${state.answerLineCountOf(QuestionKind.open)}',
-        ),
-        practicalPrompts = <TextEditingController>[
-          for (final ExamPracticalQuestion question in state.practical)
-            TextEditingController(text: question.prompt),
-        ],
-        practicalDegrees = <TextEditingController>[
-          for (final ExamPracticalQuestion question in state.practical)
-            TextEditingController(text: '${question.degree}'),
-        ] {
+    : school = TextEditingController(text: state.schoolName),
+      grade = TextEditingController(text: state.gradeLabel),
+      section = TextEditingController(text: state.sectionName),
+      year = TextEditingController(text: state.academicYear),
+      teacher = TextEditingController(text: state.teacherName),
+      directorate = TextEditingController(
+        text: state.headerConfig.directorateLine,
+      ),
+      customExamTitle = TextEditingController(
+        text: state.headerConfig.customExamTitle,
+      ),
+      examDuration = TextEditingController(
+        text: state.headerConfig.examDuration,
+      ),
+      paperNote = TextEditingController(text: state.headerConfig.paperNote),
+      closingWish = TextEditingController(text: state.headerConfig.closingWish),
+      headerSize = TextEditingController(text: '${state.headerFontSize ?? ''}'),
+      bodySize = TextEditingController(text: '${state.bodyFontSize ?? ''}'),
+      headingSize = TextEditingController(text: '${state.headingFontSize ?? ''}'),
+      lineSpacing = TextEditingController(
+        text: '${state.lineSpacingPercent ?? ''}',
+      ),
+      theoryDegree = TextEditingController(text: '${state.theoryDegree ?? ''}'),
+      practicalDegree = TextEditingController(
+        text: '${state.practicalDegree ?? ''}',
+      ),
+      theoryHeader = TextEditingController(text: state.theoryHeader),
+      practicalHeader = TextEditingController(text: state.practicalHeader),
+      answerLines = TextEditingController(
+        text: '${state.answerLineCountOf(QuestionKind.open)}',
+      ),
+      practicalPrompts = <TextEditingController>[
+        for (final ExamPracticalQuestion question in state.practical)
+          TextEditingController(text: question.prompt),
+      ],
+      practicalDegrees = <TextEditingController>[
+        for (final ExamPracticalQuestion question in state.practical)
+          TextEditingController(text: '${question.degree}'),
+      ] {
     for (final QuestionKind kind in ExamTheoryQuestion.kinds) {
       instructions[kind] = TextEditingController(text: state.instructionOf(kind));
       degrees[kind] = TextEditingController(text: '${state.degreeOf(kind) ?? ''}');
@@ -47,6 +58,11 @@ class ExamComposerControllers {
   final TextEditingController section;
   final TextEditingController year;
   final TextEditingController teacher;
+  final TextEditingController directorate;
+  final TextEditingController customExamTitle;
+  final TextEditingController examDuration;
+  final TextEditingController paperNote;
+  final TextEditingController closingWish;
   final TextEditingController headerSize;
   final TextEditingController bodySize;
   final TextEditingController headingSize;
@@ -63,14 +79,33 @@ class ExamComposerControllers {
   final Map<QuestionKind, TextEditingController> degrees =
       <QuestionKind, TextEditingController>{};
 
-  /// Pushes the values of [state] back into the fields, after a saved group or
-  /// a profile replaced them.
+  void ensurePracticalControllerCount(ExamComposerState state) {
+    while (practicalPrompts.length < state.practical.length) {
+      final idx = practicalPrompts.length;
+      practicalPrompts.add(
+        TextEditingController(text: state.practical[idx].prompt),
+      );
+      practicalDegrees.add(
+        TextEditingController(text: '${state.practical[idx].degree}'),
+      );
+    }
+    while (practicalPrompts.length > state.practical.length) {
+      practicalPrompts.removeLast().dispose();
+      practicalDegrees.removeLast().dispose();
+    }
+  }
+
   void syncFrom(ExamComposerState state) {
     school.text = state.schoolName;
     grade.text = state.gradeLabel;
     section.text = state.sectionName;
     year.text = state.academicYear;
     teacher.text = state.teacherName;
+    directorate.text = state.headerConfig.directorateLine;
+    customExamTitle.text = state.headerConfig.customExamTitle;
+    examDuration.text = state.headerConfig.examDuration;
+    paperNote.text = state.headerConfig.paperNote;
+    closingWish.text = state.headerConfig.closingWish;
     headerSize.text = '${state.headerFontSize ?? ''}';
     bodySize.text = '${state.bodyFontSize ?? ''}';
     headingSize.text = '${state.headingFontSize ?? ''}';
@@ -84,6 +119,7 @@ class ExamComposerControllers {
       instructions[kind]?.text = state.instructionOf(kind);
       degrees[kind]?.text = '${state.degreeOf(kind) ?? ''}';
     }
+    ensurePracticalControllerCount(state);
     for (var i = 0; i < practicalPrompts.length; i++) {
       practicalPrompts[i].text = state.practical[i].prompt;
       practicalDegrees[i].text = '${state.practical[i].degree}';
@@ -96,6 +132,11 @@ class ExamComposerControllers {
     section.dispose();
     year.dispose();
     teacher.dispose();
+    directorate.dispose();
+    customExamTitle.dispose();
+    examDuration.dispose();
+    paperNote.dispose();
+    closingWish.dispose();
     headerSize.dispose();
     bodySize.dispose();
     headingSize.dispose();

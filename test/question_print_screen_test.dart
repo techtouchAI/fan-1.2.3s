@@ -56,7 +56,7 @@ void main() {
       }
     }
     expect(find.byKey(const ValueKey<String>('print-unit-g2-u1')), findsNothing);
-    expect(find.textContaining('٣ وحدة • ٢٥ سؤالاً'), findsOneWidget);
+    expect(find.textContaining('٤ وحدة • ٣٢ سؤالاً'), findsOneWidget);
     expect(fontSelector, findsOneWidget);
     expect(tester.widget<TextField>(bodySize).controller!.text, '12');
     expect(tester.widget<TextField>(headingSize).controller!.text, '14');
@@ -97,8 +97,13 @@ void main() {
     await tapVisible(tester, find.text('تحديد الكل'));
     await tester.tap(printButton);
     await tester.pump();
-    expect(printed[2].units.map((unit) => unit.id), <String>['g1-u1', 'g1-u2', 'g1-u4']);
-    expect(printed[2].questionCount, 25);
+    expect(printed[2].units.map((unit) => unit.id), <String>[
+      'g1-u1',
+      'g1-u2',
+      'g1-u3',
+      'g1-u4',
+    ]);
+    expect(printed[2].questionCount, 32);
   });
 
   testWidgets('passes the selected font and numeric sizes without changing reading settings', (
@@ -200,13 +205,13 @@ void main() {
     await tester.pump();
 
     expect(unitSelector('g1-u1'), findsNothing);
-    for (final id in <String>['g2-u1', 'g2-u2', 'g2-u4']) {
+    for (final id in <String>['g2-u1', 'g2-u2', 'g2-u3', 'g2-u4']) {
       expect(tester.widget<CheckboxListTile>(unitSelector(id)).value, isTrue);
     }
     await tester.tap(printButton);
     await tester.pump();
     expect(printed!.units.every((unit) => unit.sectionId == 'g2'), isTrue);
-    expect(printed!.questionCount, 23);
+    expect(printed!.questionCount, 31);
   });
 
   testWidgets('disables controls while printing and restores them afterwards', (tester) async {

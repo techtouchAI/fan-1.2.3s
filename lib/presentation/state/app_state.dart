@@ -188,11 +188,15 @@ class AppState extends ChangeNotifier {
   }
 
   /// Ids of every unit the learner may open: the chosen grade plus the shared
-  /// introduction that the home and index pages keep visible.
+  /// introduction and theatre sections that the home and index pages keep visible.
   Set<String> get visibleUnitIds {
     final ids = visibleUnits.map((unit) => unit.id).toSet();
     if (gradeSection != null) {
-      ids.addAll(library.unitsOf('intro').map((unit) => unit.id));
+      for (final unit in library.units) {
+        if (unit.isIntroduction || unit.isTheatre) {
+          ids.add(unit.id);
+        }
+      }
     }
     return ids;
   }

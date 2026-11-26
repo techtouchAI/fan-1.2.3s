@@ -2,39 +2,38 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/dimens.dart';
 import '../../../core/utils/arabic_text.dart';
-import '../../../domain/models/exam_paper.dart';
 import '../../../domain/models/library.dart';
 import '../../state/exam_composer_state.dart';
 import 'exam_composer_controllers.dart';
 import 'exam_panel_parts.dart';
 
-/// Fourth step: the practical questions, each one either a prepared drawing
-/// topic of the curriculum or a question written by the teacher.
+/// Fourth step: practical drawing questions (1..5 slots), each chosen from the
+/// curriculum drawings or written freely.
 class ExamPracticalPanel extends StatelessWidget {
   const ExamPracticalPanel({
     super.key,
     required this.state,
     required this.controllers,
+    this.drawings,
   });
 
   final ExamComposerState state;
   final ExamComposerControllers controllers;
+  final List<TopicDrawing>? drawings;
 
-  /// Sentinel of the "write my own question" choice; the dropdown cannot use a
-  /// null value to select an item.
-  static const String customChoice = '__exam_custom__';
+  List<TopicDrawing> get _drawings => drawings ?? state.drawings;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    controllers.ensurePracticalControllerCount(state);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         ExamPanelCard(
-          title: 'المادة العملية',
+          title: 'عنوان المادة العملية',
           subtitle:
-              'اختر موضوع رسم جاهزاً من موضوعات الصف، أو اكتب سؤالاً مخصصاً. '
-              'ترتيب الأسئلة هو ترتيب كتابتها.',
+              'يُطبع: نصك، ثم ____________ والدرجات. إجمالي العملي '
+              '${toArabicDigits('${state.practicalDegree ?? 0}')} درجة.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -43,8 +42,7 @@ class ExamPracticalPanel extends StatelessWidget {
                 controller: controllers.practicalHeader,
                 maxLines: null,
                 decoration: const InputDecoration(
-                  labelText: 'عنوان المادة العملية',
-                  helperText: 'تُطبع بعده الدرجة الكلية تلقائياً.',
+                  labelText: 'نص العنوان',
                   border: OutlineInputBorder(),
                 ),
                 onChanged: state.setPracticalHeader,
@@ -58,12 +56,6 @@ class ExamPracticalPanel extends StatelessWidget {
                   parseIntegerDigits(controllers.practicalDegree.text),
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'عدد الموضوعات الجاهزة لهذا الصف: '
-                '${toArabicDigits('${state.drawings.length}')}.',
-                style: theme.textTheme.bodySmall,
-              ),
             ],
           ),
         ),
@@ -71,33 +63,73 @@ class ExamPracticalPanel extends StatelessWidget {
           const SizedBox(height: AppSpacing.lg),
           _slot(context, i),
         ],
+        if (state.practical.length < ExamComposerState.maxPracticalSlots) ...<Widget>[
+          const SizedBox(height: AppSpacing.md),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: OutlinedButton.icon(
+              key: const ValueKey<String>('exam-add-practical-slot'),
+              onPressed: () {
+                state.addPracticalSlot();
+                controllers.syncFrom(state);
+              },
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('إضافة سؤال عملي'),
+            ),
+          ),
+        ],
       ],
     );
   }
 
   Widget _slot(BuildContext context, int index) {
-    final ExamPracticalQuestion question = state.practical[index];
-    final selectedId = question.drawingId ?? customChoice;
+    final slot = state.practical[index];
+    final availableDrawings = _drawings;
+    TopicDrawing? selectedDrawing;
+    if (slot.drawingId != null) {
+      for (final TopicDrawing drawing in availableDrawings) {
+        if (drawing.id == slot.drawingId) {
+          selectedDrawing = drawing;
+          break;
+        }
+      }
+    }
     return ExamPanelCard(
       title: 'السؤال العملي ${toArabicDigits('${index + 1}')}',
+      subtitle: index == 0
+          ? 'اختر رسماً من رسومات المنهج أو اكتب نصاً مخصصاً.'
+          : 'اختياري؛ يُحذف من الورقة إذا تُرك فارغاً.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          DropdownButtonFormField<String>(
+          if (state.practical.length > 1 && index >= 3)
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: IconButton(
+                key: ValueKey<String>('exam-remove-practical-$index'),
+                tooltip: 'حذف الخانة العملية',
+                icon: const Icon(Icons.delete_outline, size: 20),
+                onPressed: () {
+                  state.removePracticalSlot(index);
+                  controllers.syncFrom(state);
+                },
+              ),
+            ),
+          DropdownButtonFormField<String?>(
             key: ValueKey<String>('exam-drawing-$index'),
-            initialValue: selectedId,
+            initialValue: selectedDrawing?.id,
             isExpanded: true,
             decoration: const InputDecoration(
-              labelText: 'موضوع الرسم',
+              labelText: 'من رسومات المنهج',
               border: OutlineInputBorder(),
             ),
-            items: <DropdownMenuItem<String>>[
-              const DropdownMenuItem<String>(
-                value: customChoice,
-                child: Text('سؤال مخصص'),
+            items: <DropdownMenuItem<String?>>[
+              const DropdownMenuItem<String?>(
+                value: null,
+                child: Text('كتابة حرة أو بدون سؤال'),
               ),
-              for (final TopicDrawing drawing in state.drawings)
-                DropdownMenuItem<String>(
+              for (final TopicDrawing drawing in availableDrawings)
+                DropdownMenuItem<String?>(
                   value: drawing.id,
                   child: Text(
                     '${drawing.title} — ${drawing.unitTitle}',
@@ -105,24 +137,16 @@ class ExamPracticalPanel extends StatelessWidget {
                   ),
                 ),
             ],
-            onChanged: (String? id) {
-              state.selectDrawing(index, _drawingById(id));
-              final controller = controllers.practicalPrompts[index];
-              final prompt = state.practical[index].prompt;
-              if (controller.text != prompt) {
-                controller.text = prompt;
-              }
-            },
+            onChanged: (String? id) => _pickDrawing(index, id),
           ),
           const SizedBox(height: AppSpacing.md),
           TextField(
             key: ValueKey<String>('exam-practical-$index'),
             controller: controllers.practicalPrompts[index],
-            maxLines: 3,
-            minLines: 1,
+            maxLines: null,
             decoration: const InputDecoration(
-              labelText: 'نص السؤال',
-              hintText: 'ارسم …',
+              labelText: 'نص السؤال العملي',
+              hintText: 'رسم موضوع عن …',
               border: OutlineInputBorder(),
             ),
             onChanged: (String value) => state.setPracticalPrompt(index, value),
@@ -130,27 +154,34 @@ class ExamPracticalPanel extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           ExamNumberField(
             fieldKey: ValueKey<String>('exam-practical-degree-$index'),
-            label: 'درجة السؤال',
+            label: 'درجة السؤال (إن وُجدت)',
             controller: controllers.practicalDegrees[index],
-            onChanged: () => state.setPracticalSlotDegree(
-              index,
-              parseIntegerDigits(controllers.practicalDegrees[index].text),
-            ),
+            onChanged: () {
+              final value = parseIntegerDigits(
+                controllers.practicalDegrees[index].text,
+              );
+              if (value != null) {
+                state.setPracticalSlotDegree(index, value);
+              }
+            },
           ),
         ],
       ),
     );
   }
 
-  TopicDrawing? _drawingById(String? id) {
-    if (id == null || id == customChoice) {
-      return null;
+  void _pickDrawing(int index, String? id) {
+    if (id == null) {
+      state.selectDrawing(index, null);
+      controllers.practicalPrompts[index].text = '';
+      return;
     }
-    for (final TopicDrawing drawing in state.drawings) {
+    for (final TopicDrawing drawing in _drawings) {
       if (drawing.id == id) {
-        return drawing;
+        state.selectDrawing(index, drawing);
+        controllers.practicalPrompts[index].text = state.practical[index].prompt;
+        return;
       }
     }
-    return null;
   }
 }

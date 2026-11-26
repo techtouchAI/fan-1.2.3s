@@ -7,7 +7,7 @@ import '../../state/exam_composer_state.dart';
 import 'exam_composer_controllers.dart';
 import 'exam_panel_parts.dart';
 
-/// First step of the composer: typeface and point sizes of the exported file.
+/// Typography, line-spacing, and A4 page margin controls for the exam paper.
 class ExamTypographyPanel extends StatelessWidget {
   const ExamTypographyPanel({
     super.key,
@@ -25,7 +25,8 @@ class ExamTypographyPanel extends StatelessWidget {
       children: <Widget>[
         ExamPanelCard(
           title: 'نوع الخط وحجمه',
-          subtitle: 'تُطبَّق على ملف وورد عند التصدير، ولا تغيّر خط التطبيق.',
+          subtitle:
+              'تُطبَّق على معاينة ورقة A4 وملف Word المصدَّر، ولا تغيّر خط قراءة التطبيق.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -58,6 +59,8 @@ class ExamTypographyPanel extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         _spacing(Theme.of(context)),
         const SizedBox(height: AppSpacing.lg),
+        _marginsCard(),
+        const SizedBox(height: AppSpacing.lg),
         _preview(context),
       ],
     );
@@ -72,9 +75,7 @@ class ExamTypographyPanel extends StatelessWidget {
         unit: 'نقطة',
         min: ExamPaperTypography.minFontSize,
         max: ExamPaperTypography.maxFontSize,
-        onChanged: () => state.setHeaderFontSize(
-          _sizeOf(controllers.headerSize),
-        ),
+        onChanged: () => state.setHeaderFontSize(_sizeOf(controllers.headerSize)),
       ),
       ExamNumberField(
         fieldKey: const ValueKey<String>('exam-body-size'),
@@ -92,9 +93,7 @@ class ExamTypographyPanel extends StatelessWidget {
         unit: 'نقطة',
         min: ExamPaperTypography.minFontSize,
         max: ExamPaperTypography.maxFontSize,
-        onChanged: () => state.setHeadingFontSize(
-          _sizeOf(controllers.headingSize),
-        ),
+        onChanged: () => state.setHeadingFontSize(_sizeOf(controllers.headingSize)),
       ),
     ];
     return LayoutBuilder(
@@ -123,8 +122,6 @@ class ExamTypographyPanel extends StatelessWidget {
     );
   }
 
-  /// Line spacing of the exported paper. Word expresses it as 240ths of a
-  /// line, so the slider works in percent of the official layout.
   Widget _spacing(ThemeData theme) {
     final percent = parseIntegerDigits(controllers.lineSpacing.text);
     final valid = ExamPaperTypography.isValidLineSpacing(percent);
@@ -156,7 +153,8 @@ class ExamTypographyPanel extends StatelessWidget {
             alignment: AlignmentDirectional.centerStart,
             child: TextButton.icon(
               key: const ValueKey<String>('exam-line-spacing-reset'),
-              onPressed: state.lineSpacingPercent ==
+              onPressed:
+                  state.lineSpacingPercent ==
                       ExamPaperTypography.officialLineSpacingPercent
                   ? null
                   : () {
@@ -173,15 +171,13 @@ class ExamTypographyPanel extends StatelessWidget {
     );
   }
 
-  /// The label and the percentage field sit side by side on wide panels and
-  /// stack on narrow phones so nothing overflows.
   Widget _spacingRow(int current, bool valid, ThemeData theme) {
     final label = Text(
       valid
           ? 'التباعد الحالي ${toArabicDigits('$current')}٪ من الأصل'
           : 'أدخل نسبة بين '
-              '${toArabicDigits('${ExamPaperTypography.minLineSpacingPercent}')} و'
-              ' ${toArabicDigits('${ExamPaperTypography.maxLineSpacingPercent}')}',
+                '${toArabicDigits('${ExamPaperTypography.minLineSpacingPercent}')} و'
+                ' ${toArabicDigits('${ExamPaperTypography.maxLineSpacingPercent}')}',
       key: const ValueKey<String>('exam-spacing-label'),
       style: theme.textTheme.labelLarge?.copyWith(
         color: valid ? null : theme.colorScheme.error,
@@ -220,13 +216,46 @@ class ExamTypographyPanel extends StatelessWidget {
     );
   }
 
+  Widget _marginsCard() {
+    final preset = state.margins.presetName;
+    return ExamPanelCard(
+      title: 'هوامش صفحة A4',
+      subtitle: 'تُطبَّق بنفس الأبعاد على معاينة A4 وعلى ملف Word المصدَّر.',
+      child: Wrap(
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.xs,
+        children: <Widget>[
+          ChoiceChip(
+            key: const ValueKey<String>('exam-margins-compact'),
+            label: const Text('ضيق (مساحة قصوى)'),
+            selected: preset == 'compact',
+            onSelected: (_) => state.setMargins(ExamPageMargins.compact),
+          ),
+          ChoiceChip(
+            key: const ValueKey<String>('exam-margins-standard'),
+            label: const Text('قياسي رسمي'),
+            selected: preset == 'standard',
+            onSelected: (_) => state.setMargins(ExamPageMargins.standard),
+          ),
+          ChoiceChip(
+            key: const ValueKey<String>('exam-margins-comfortable'),
+            label: const Text('واسع ومريح'),
+            selected: preset == 'comfortable',
+            onSelected: (_) => state.setMargins(ExamPageMargins.comfortable),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _preview(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final typography = state.typography ?? const ExamPaperTypography();
+    final previewFont = typography.font.previewFamily;
     return ExamPanelCard(
-      title: 'معاينة الأحجام',
-      subtitle: 'الحجم يظهر كما سيُطبع؛ نوع الخط يظهر داخل ملف وورد.',
+      title: 'معاينة الأحجام والخط',
+      subtitle: 'عينة سريعة للأحجام وتباعد الأسطر قبل فتح معاينة ورقة A4 الكاملة.',
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
@@ -240,12 +269,15 @@ class ExamTypographyPanel extends StatelessWidget {
               'اسئلة امتحانات ${state.term.label}',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
+                fontFamily: previewFont,
                 fontSize: typography.headerFontSize.toDouble(),
+                fontWeight: FontWeight.bold,
               ),
             ),
             Text(
               'المادة النظرية / اجب عن سؤالين فقط',
               style: theme.textTheme.bodyMedium?.copyWith(
+                fontFamily: previewFont,
                 fontSize: typography.headingFontSize.toDouble(),
                 fontWeight: FontWeight.bold,
                 height: _previewHeight(typography),
@@ -254,6 +286,7 @@ class ExamTypographyPanel extends StatelessWidget {
             Text(
               '1- ضع علامة صح امام العبارة الصحيحة',
               style: theme.textTheme.bodyMedium?.copyWith(
+                fontFamily: previewFont,
                 fontSize: typography.bodyFontSize.toDouble(),
                 height: _previewHeight(typography),
               ),
@@ -267,8 +300,6 @@ class ExamTypographyPanel extends StatelessWidget {
   static int? _sizeOf(TextEditingController controller) =>
       parseIntegerDigits(controller.text);
 
-  /// Flutter's `height` is a multiplier of the font size; Word's `w:line` is
-  /// relative to the single line (240 twips), so the ratio maps directly.
   static double _previewHeight(ExamPaperTypography typography) =>
       typography.lineTwips / ExamPaperTypography.baseLineTwips;
 }
