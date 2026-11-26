@@ -12,6 +12,8 @@ class QuizSession {
   final Map<String, bool> _trueFalse = <String, bool>{};
   final Map<String, int> _choices = <String, int>{};
   final Set<String> _revealed = <String>{};
+  final Map<String, bool> _openSelfChecks = <String, bool>{};
+  final Map<String, String> _openDrafts = <String, String>{};
 
   bool get isEmpty => questions.isEmpty;
 
@@ -33,6 +35,25 @@ class QuizSession {
   void reveal(Question question) {
     _revealed.add(question.id);
   }
+
+  void setOpenDraft(Question question, String draft) {
+    _openDrafts[question.id] = draft;
+  }
+
+  String openDraft(Question question) => _openDrafts[question.id] ?? '';
+
+  void markOpenSelfCheck(Question question, {required bool mastered}) {
+    _revealed.add(question.id);
+    _openSelfChecks[question.id] = mastered;
+  }
+
+  bool? openSelfCheck(Question question) => _openSelfChecks[question.id];
+
+  int get masteredOpenCount =>
+      open.where((Question q) => _openSelfChecks[q.id] == true).length;
+
+  int get selfCheckedOpenCount =>
+      open.where((Question q) => _openSelfChecks.containsKey(q.id)).length;
 
   bool isRevealed(Question question) => _revealed.contains(question.id);
 
@@ -86,5 +107,7 @@ class QuizSession {
     _trueFalse.clear();
     _choices.clear();
     _revealed.clear();
+    _openSelfChecks.clear();
+    _openDrafts.clear();
   }
 }

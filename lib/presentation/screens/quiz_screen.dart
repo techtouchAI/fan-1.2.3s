@@ -21,6 +21,7 @@ class QuizScreen extends StatefulWidget {
 class _QuizScreenState extends State<QuizScreen> {
   QuizSession? _session;
   bool _submitted = false;
+  int _resetEpoch = 0;
 
   QuizSession _sessionFor(LearningUnit unit) => _session ??= QuizSession(unit.questions);
 
@@ -63,9 +64,12 @@ class _QuizScreenState extends State<QuizScreen> {
                     total: gradable.length,
                     answered: session.answeredCount,
                     score: session.score,
+                    masteredOpen: session.masteredOpenCount,
+                    selfCheckedOpen: session.selfCheckedOpenCount,
                     onRetry: () => setState(() {
                       session.reset();
                       _submitted = false;
+                      _resetEpoch++;
                     }),
                   ),
                 const SizedBox(height: AppSpacing.md),
@@ -73,10 +77,15 @@ class _QuizScreenState extends State<QuizScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
                     child: _QuestionCard(
+                      key: ValueKey<String>(
+                        'quiz-q-${unit.questions[i].id}-$_resetEpoch',
+                      ),
                       index: i + 1,
                       question: unit.questions[i],
                       selectedChoice: session.choiceAnswer(unit.questions[i]),
                       selectedBool: session.trueFalseAnswer(unit.questions[i]),
+                      openDraft: session.openDraft(unit.questions[i]),
+                      openSelfCheck: session.openSelfCheck(unit.questions[i]),
                       revealed: session.isRevealed(unit.questions[i]),
                       submitted: _submitted,
                       onChoice: (int value) => setState(
@@ -87,6 +96,14 @@ class _QuizScreenState extends State<QuizScreen> {
                       ),
                       onReveal: () => setState(
                         () => session.reveal(unit.questions[i]),
+                      ),
+                      onOpenDraftChanged: (String draft) =>
+                          session.setOpenDraft(unit.questions[i], draft),
+                      onOpenSelfCheck: (bool mastered) => setState(
+                        () => session.markOpenSelfCheck(
+                          unit.questions[i],
+                          mastered: mastered,
+                        ),
                       ),
                     ),
                   ),
@@ -118,6 +135,8 @@ class _ScoreCard extends StatelessWidget {
     required this.total,
     required this.answered,
     required this.score,
+    required this.masteredOpen,
+    required this.selfCheckedOpen,
     required this.onRetry,
   });
 
@@ -125,6 +144,8 @@ class _ScoreCard extends StatelessWidget {
   final int total;
   final int answered;
   final int? score;
+  final int masteredOpen;
+  final int selfCheckedOpen;
   final VoidCallback onRetry;
 
   @override
@@ -159,6 +180,13 @@ class _ScoreCard extends StatelessWidget {
                       : 'تُحتسب كل إجابة صحيحة بنقطة واحدة.',
                   style: theme.textTheme.bodyMedium?.copyWith(fontSize: 13),
                 ),
+                if (selfCheckedOpen > 0) ...<Widget>[
+                  const SizedBox(height: 2),
+                  Text(
+                    'التقييم الذاتي للتعداد: أتقنت ${toArabicDigits('$masteredOpen')} من ${toArabicDigits('$selfCheckedOpen')}',
+                    style: theme.textTheme.labelMedium,
+                  ),
+                ],
               ],
             ),
           ),
@@ -171,26 +199,35 @@ class _ScoreCard extends StatelessWidget {
 
 class _QuestionCard extends StatelessWidget {
   const _QuestionCard({
+    super.key,
     required this.index,
     required this.question,
     required this.selectedChoice,
     required this.selectedBool,
+    required this.openDraft,
+    required this.openSelfCheck,
     required this.revealed,
     required this.submitted,
     required this.onChoice,
     required this.onBool,
     required this.onReveal,
+    required this.onOpenDraftChanged,
+    required this.onOpenSelfCheck,
   });
 
   final int index;
   final Question question;
   final int? selectedChoice;
   final bool? selectedBool;
+  final String openDraft;
+  final bool? openSelfCheck;
   final bool revealed;
   final bool submitted;
   final ValueChanged<int> onChoice;
   final ValueChanged<bool> onBool;
   final VoidCallback onReveal;
+  final ValueChanged<String> onOpenDraftChanged;
+  final ValueChanged<bool> onOpenSelfCheck;
 
   @override
   Widget build(BuildContext context) {
@@ -310,7 +347,19 @@ class _QuestionCard extends StatelessWidget {
               ],
             ),
           if (question.kind == QuestionKind.open) ...<Widget>[
-            if (revealed || submitted)
+            TextFormField(
+              key: ValueKey<String>('open-draft-${question.id}'),
+              initialValue: openDraft,
+              minLines: 1,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'اكتب تعدادك هنا للمقارنة قبل كشف الإجابة (اختياري)...',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: onOpenDraftChanged,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            if (revealed || submitted) ...<Widget>[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.md),
@@ -322,12 +371,31 @@ class _QuestionCard extends StatelessWidget {
                   question.answerText.isEmpty
                       ? 'لا توجد إجابة مدونة لهذا السؤال.'
                       : question.answerText.contains('\n')
-                          ? 'الإجابة:\n${question.answerText}'
-                          : 'الإجابة: ${question.answerText}',
+                      ? 'الإجابة:\n${question.answerText}'
+                      : 'الإجابة: ${question.answerText}',
                   style: theme.textTheme.bodyLarge,
                 ),
-              )
-            else
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                children: <Widget>[
+                  ChoiceChip(
+                    key: ValueKey<String>('open-mastered-${question.id}'),
+                    label: const Text('أتقنت التعداد'),
+                    selected: openSelfCheck == true,
+                    onSelected: (_) => onOpenSelfCheck(true),
+                  ),
+                  ChoiceChip(
+                    key: ValueKey<String>('open-review-${question.id}'),
+                    label: const Text('أحتاج لمراجعته'),
+                    selected: openSelfCheck == false,
+                    onSelected: (_) => onOpenSelfCheck(false),
+                  ),
+                ],
+              ),
+            ] else
               OutlinedButton.icon(
                 onPressed: onReveal,
                 icon: const Icon(Icons.visibility_outlined, size: 18),

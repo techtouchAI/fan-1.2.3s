@@ -1,11 +1,11 @@
 {
-  "base": "067fdf119cc8b8bcc73adc250ff3f9c76a5d110c",
+  "base": "067fdf119cc8b8bcc73adc250ff3f9c76a5d110c+curriculum-v2",
   "sha256": {
-    "assets/content/curriculum.json": "7a79a7e08a73a2762fb73807dd8db2691e5da4b346c4e3b4019a27efe4e63ca2",
-    "assets/content/drawings.json": "bb6f6ff052166e4394e65154e192b15520e25e42b2877e46114fa90c12263655",
-    "assets/content/glossary.json": "10a979e00d1e9bd023add01ff85d9250d1ee9ebf5ba1aca652880608fe2a2902",
+    "assets/content/curriculum.json": "be6af7ff6511075bc80f7cfbcfa495d5ddd8e180fcab85ad53aa3eb95788918b",
+    "assets/content/drawings.json": "1f3a5c3f0c72d26a05f09722ae52fd10c89fd324e30eace689c96113f69bdf82",
+    "assets/content/glossary.json": "c6cacd57c91b34c488f2f8d33b837166612bb21a4211149d296778785cd07892",
     "assets/content/lessons.json": "bf1ad10da37ccc2b9ef3bb89a7c6932b82b0a2af660180e4ba166b19afdd5acf",
-    "assets/content/plates.json": "49be675c8c261fad7e0968def41db983a78fe8fddd87c0149700f7d024cf4459",
+    "assets/content/plates.json": "b7c2f4bad9ce2252369bb9d02fe56ff405c458570a4d58fbaa43c985c2d2ad25",
     "assets/illustrations/book-cover.svg": "57c8447eb7abb8aa1603b6f7527d0a8d6aeeb4aa2900c0c7baf2c5ca06c2777a",
     "assets/illustrations/cardboard-net.svg": "081abe00403febcb95626df83b06e0ff0aa0be070c61d32297213c3a0ed61f1e",
     "assets/illustrations/color-wheel.svg": "d25e32ec8f1844ed3a311f0ef9bf10d7f0510e61b5f5aeac785876c7fa176e93",
@@ -40,6 +40,12 @@
     "assets/images/drawings/drawing-12.png": "4e182bc4787b2ee4f054856854ae9fa34e6ee4a870c434f971e32762ba67e24e",
     "assets/images/drawings/drawing-13.png": "7bade7f2902d73cfcebb64f119876459035d66d848944e402af484307aaf07f5",
     "assets/images/drawings/drawing-14.png": "04fcf0a56b55a550535f4dd806f1160553dd2b5c505ad12cd90a23d80c3ba0a7",
+    "assets/images/drawings/drawing-15.png": "674ec4d23f015fbd8017c56d50fe21ad794e1cb7d8b7d4b47536079c64c66811",
+    "assets/images/drawings/drawing-16.png": "654df32f1499745423fc5285f28e8d16a305d1dc308f11fa11c8374c0c3b4a7b",
+    "assets/images/drawings/drawing-17.png": "3dba9de5f4dcccbd0babeff6ef68468eea05cd9e29aaa9e42b50d1c67f7e12a4",
+    "assets/images/drawings/drawing-18.png": "ba6ee25b4880aa20ac92ffee51f2d3a6ea7ff2ccb9ed3cb1c72f19fa74c5927f",
+    "assets/images/drawings/drawing-19.png": "4ae7602b293031bceaf1dfaca7ee56990cfe7bcb89095ab647ef52c13deceea2",
+    "assets/images/drawings/drawing-20.png": "2c682c264ecf8613e4ada56e42bc188d95b985fb6ebf323dd92cf1f6dbcc2838",
     "assets/images/plates/plate-01.jpg": "2c38e1b00b34ceba9d0e26234040f484e038d4caad276c2a637119fe309d6dd5",
     "assets/images/plates/plate-02.jpg": "2f25dd0543071e8af7c5792238fcfdcc48afe776ff4adcdcf3ed4012c8cefd29",
     "assets/images/plates/plate-03.jpg": "682ebdbf803a308a7204152c6b59d361bae3612a1b179cc804e1b072633f44a2",
@@ -49,6 +55,16 @@
     "assets/images/plates/plate-07.jpg": "636dfd9661388c6483d5f1ee7508962b2d7016df1107ee2cbec1c5687a723d46",
     "assets/images/plates/plate-08.jpg": "f85dcce7df6f9ba8cf37335b6ae7484fb446a1f3c992bf7bb9c95fc9bfbf6e11",
     "assets/images/plates/plate-09.jpg": "71701bc2a65e556394a9e6d56e8bdfcef96d2ccaf872cdc29a5a11e196499ddf",
-    "assets/images/plates/plate-10.jpg": "7db1011c94eef72c9637435900fc4655b4e56a8deee5cb91afaf7b7738315752"
+    "assets/images/plates/plate-10.jpg": "7db1011c94eef72c9637435900fc4655b4e56a8deee5cb91afaf7b7738315752",
+    "assets/images/plates/plate-11.jpg": "d5c148b23f3c2882740f83ab433c7fedffdb6e5ae00fd7b5d5832663fd3a1029",
+    "assets/images/plates/plate-12.jpg": "be10daac7399819abc3899f653b6011d9b8becdf31256b1f96264a9b247e2173",
+    "assets/images/plates/plate-13.jpg": "31cec7d8a106651915021b3b9f6007ed652bb5fbc74671c6aaac026ae4e29899",
+    "assets/images/plates/plate-14.jpg": "9a07f9c60f5980b722dd3c19faab0be18704d0ca0eeef392cead2e96662904ca",
+    "assets/images/plates/plate-15.jpg": "8222b3b4574963763e2783aa435fa373c66533b8ef7c382fcf4c110a1f0ba262",
+    "assets/images/plates/plate-16.jpg": "f84aba7a76c9f1a6982baf20676b662d1066149d5e40c6a1440141d0475c59ee",
+    "assets/images/plates/plate-17.jpg": "e9de754479bfbd93a2185aaea7fb95fc83efa0535baa805211976dbc972c868f",
+    "assets/images/plates/plate-18.jpg": "5c13afc284c15924e1a8fec0fb775c9c8de7858c8d46e002ed453c5094bb632d",
+    "assets/images/plates/plate-19.jpg": "356e16db33cc32c95a9e0f078f798d946c3e0d2669e85917be0754fe2efadfc6",
+    "assets/images/plates/plate-20.jpg": "762a44a3dd6945bb49cd80854335687865d119ba548db5773019afef4d6ddbf5"
   }
 }

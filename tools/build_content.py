@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the structured app content (JSON + plate images) from the DOCX sources.
+"""Build the structured app content (JSON + plate & drawing images) from sources.
 
 Run from the repository root::
 
@@ -8,15 +8,20 @@ Run from the repository root::
 The script is deterministic: running it twice produces identical output.
 Sources (read-only):
 
-* ``ملزمة_التربية_الفنية_بنموذج_إجابة_موحد.docx`` -> the 9 grade units, topics,
-  unified answer-key questions, and embedded artwork/diagram plates
+* ``ملزمة_التربية_الفنية_بنموذج_إجابة_موحد.docx`` -> core grade units, topics,
+  unified answer-key questions, and embedded artwork/diagram plates (01..10)
+* ``tools/guide_supplements.py`` + ``tools/extra_plates/`` -> missing craft units
+  (g1-u3, g2-u3, g3-u3), still-life topic (g3-u1/t4), introductory guidelines
+  & composition principles, and cropped teacher-guide plates (11..20)
 * ``محتوى مكتمل/مقدمة.docx``                 -> introduction & teaching methods
 * ``محتوى مكتمل/*نظري*.docx``                -> practical lesson plans
 * ``tools/theatre_content.py``                -> theatre activities section
+* ``tools/drawings_content.py`` + ``tools/extra_drawings/`` -> 20 topic drawings
 """
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 import sys
@@ -38,9 +43,17 @@ from drawings_content import (  # noqa: E402
     DRAWINGS_INTRO,
     DRAWINGS_SUBTITLE,
     DRAWINGS_TITLE,
+    EXTRA_DRAWINGS,
+)
+from guide_supplements import (  # noqa: E402
+    GUIDE_EXTRA_PLATES,
+    GUIDE_UNIT_EXTRA_TOPICS,
+    GUIDE_UNITS,
+    INTRO_EXTRA_TOPICS,
 )
 from theatre_content import (  # noqa: E402
     THEATRE_INTRO,
+    THEATRE_SUBTITLE,
     THEATRE_TITLE,
     THEATRE_TOPICS,
 )
@@ -49,6 +62,8 @@ ROOT = Path(__file__).resolve().parents[1]
 CONTENT_DIR = ROOT / "assets" / "content"
 PLATE_DIR = ROOT / "assets" / "images" / "plates"
 DRAWING_DIR = ROOT / "assets" / "images" / "drawings"
+EXTRA_PLATES_DIR = ROOT / "tools" / "extra_plates"
+EXTRA_DRAWINGS_DIR = ROOT / "tools" / "extra_drawings"
 MALZAMA_DOC = ROOT / "ملزمة_التربية_الفنية_بنموذج_إجابة_موحد.docx"
 INTRO_DOC = ROOT / "محتوى مكتمل" / "مقدمة.docx"
 DRAWINGS_DOC = ROOT / "التربية_الفنية_14_موضوعا_صورة_واحدة_لكل_موضوع.docx"
@@ -75,7 +90,7 @@ def figure(asset: str, caption: str, items=None) -> dict:
 
 
 # Authored design metadata: how each unit is presented and illustrated.
-# Keys are "<grade>-u<unit number>"; captions only reuse terminology of the source.
+# Keys are "<grade>-u<unit number>"; captions reuse curriculum terminology.
 UNIT_META: Dict[str, dict] = {
     "g1-u1": {
         "template": "concept",
@@ -106,6 +121,22 @@ UNIT_META: Dict[str, dict] = {
                 "ornament-grid",
                 "الوحدة الزخرفية وتكرارها وتماثلها داخل المساحة.",
                 legend(("الوحدة", "primary"), ("التكرار", "secondary")),
+            ),
+        ],
+    },
+    "g1-u3": {
+        "template": "materials",
+        "accent": "green",
+        "figures": [
+            figure(
+                "cardboard-net",
+                "إفراد المكعب من الورق المقوى: الأوجه الهندسية وخطوط الطي وألسنة اللصق.",
+                legend(("الأوجه", "secondary"), ("خط الطي", "primary"), ("لسان اللصق", "gold")),
+            ),
+            figure(
+                "pottery-wheel",
+                "مراحل التشكيل الفخاري: العجن والدولاب والتجفيف والفخر والتزجيج.",
+                legend(("الطين", "primary"), ("التزجيج", "secondary"), ("الفخر", "gold")),
             ),
         ],
     },
@@ -147,6 +178,27 @@ UNIT_META: Dict[str, dict] = {
             ),
         ],
     },
+    "g2-u3": {
+        "template": "materials",
+        "accent": "gold",
+        "figures": [
+            figure(
+                "print-block",
+                "الطباعة اليدوية وقوالب الاستنسل ونقل الزخرفة إلى السطح.",
+                legend(("القالب", "primary"), ("اللون", "secondary"), ("السطح المطبوع", "gold")),
+            ),
+            figure(
+                "loom-weaving",
+                "المنوال البسيط: تعاشق خيوط السدى الطولية مع خيوط اللحمة العرضية.",
+                legend(("خيوط السدى", "secondary"), ("خيوط اللحمة", "primary"), ("المكوك", "gold")),
+            ),
+            figure(
+                "reed-basket",
+                "التشكيل بسعف النخيل والقصب وجدائل الخوص المتشابكة.",
+                legend(("القاعدة", "gold"), ("الجدائل", "green"), ("الحافة", "primary")),
+            ),
+        ],
+    },
     "g2-u4": {
         "template": "concept",
         "accent": "gold",
@@ -172,6 +224,11 @@ UNIT_META: Dict[str, dict] = {
                 "قواعد المنظور الهندسي: خط الأفق ونقاط التلاشي.",
                 legend(("خط الأرض", "green"), ("خط الأفق", "secondary"), ("نقطة التلاشي", "primary")),
             ),
+            figure(
+                "still-life",
+                "تكوين الطبيعة الصامتة: توازن الكتل وخط الطاولة وتدرج الظل والضوء.",
+                legend(("مصدر الضوء", "gold"), ("الكتل", "primary"), ("الظل الساقط", "ink")),
+            ),
         ],
     },
     "g3-u2": {
@@ -182,6 +239,22 @@ UNIT_META: Dict[str, dict] = {
                 "kufi-grid",
                 "الخط الكوفي وبناء حروفه القائم على الخطوط والزوايا.",
                 legend(("الشبكة", "secondary"), ("الحروف", "ink")),
+            ),
+        ],
+    },
+    "g3-u3": {
+        "template": "materials",
+        "accent": "green",
+        "figures": [
+            figure(
+                "wire-forms",
+                "التشكيل بالأسلاك المعدنية المرنة لبناء هيكل مجسم متوازن.",
+                legend(("الهيكل", "ink"), ("نقاط الربط", "primary"), ("القاعدة", "gold")),
+            ),
+            figure(
+                "macrame-knots",
+                "عقد المكرمية الأساسية بين الخيوط الحاملة والخيوط العاملة.",
+                legend(("الخيط الحامل", "secondary"), ("الخيط العامل", "primary")),
             ),
         ],
     },
@@ -255,30 +328,23 @@ def _find_choice_support(option: str, unit_text: str) -> Optional[str]:
 def build_units_and_plates() -> Tuple[List[dict], List[dict]]:
     if not MALZAMA_DOC.exists():
         raise SystemExit(f"missing source booklet: {MALZAMA_DOC}")
-    raw_units, media = parse_malzama_docx(MALZAMA_DOC)
+    malzama_units, media = parse_malzama_docx(MALZAMA_DOC)
+    supplement_units = copy.deepcopy(GUIDE_UNITS)
 
-    # Clear stale plate files and write the exact images from the booklet.
     PLATE_DIR.mkdir(parents=True, exist_ok=True)
     for stale in PLATE_DIR.glob("plate-*.jpg"):
         stale.unlink()
 
-    units: List[dict] = []
     plates: List[dict] = []
     plate_counter = 0
 
-    for unit in raw_units:
+    # 1. Extract the 10 booklet plates first so plate-01..10 remain byte-for-byte
+    #    identical to their original positions in MALZAMA_DOC.
+    for unit in malzama_units:
         uid = unit["id"]
-        if uid not in UNIT_META:
-            raise SystemExit(f"missing UNIT_META for {uid}")
-        meta = UNIT_META[uid]
+        if uid in GUIDE_UNIT_EXTRA_TOPICS:
+            unit["topics"].extend(copy.deepcopy(GUIDE_UNIT_EXTRA_TOPICS[uid]))
         unit_images = unit.pop("images", [])
-        unit["template"] = meta["template"]
-        unit["accent"] = meta["accent"]
-        unit["figures"] = meta["figures"]
-        unit["unitText"] = "\n".join(
-            [t["title"] + "\n" + "\n".join(t["bullets"]) for t in unit["topics"]]
-        )
-
         unit_plates: List[dict] = []
         for img_entry in unit_images:
             plate_counter += 1
@@ -304,10 +370,63 @@ def build_units_and_plates() -> Tuple[List[dict], List[dict]]:
                 "grade": unit["grade"],
                 "unitId": uid,
             })
-
         unit["plates"] = unit_plates
-        if unit_plates:
-            unit["plate"] = unit_plates[0]
+
+    for unit in supplement_units:
+        unit.pop("images", None)
+        unit["plates"] = []
+
+    grade_rank = {"g1": 1, "g2": 2, "g3": 3}
+    all_units = sorted(
+        malzama_units + supplement_units,
+        key=lambda u: (grade_rank[u["sectionId"]], u["order"]),
+    )
+    by_id = {u["id"]: u for u in all_units}
+
+    # 2. Copy the 10 cropped teacher-guide plates (plate-11..20) and attach them.
+    for extra_plate in GUIDE_EXTRA_PLATES:
+        plate_counter += 1
+        src_path = EXTRA_PLATES_DIR / extra_plate["file"]
+        if not src_path.exists():
+            raise SystemExit(f"missing extra plate: {src_path}")
+        filename = f"plate-{plate_counter:02d}.jpg"
+        (PLATE_DIR / filename).write_bytes(src_path.read_bytes())
+        uid = extra_plate["unitId"]
+        if uid not in by_id:
+            raise SystemExit(f"extra plate {filename} references unknown unit {uid}")
+        unit = by_id[uid]
+        caption = extra_plate["caption"]
+        plate_id = f"plate-{plate_counter:02d}"
+        asset_path = f"assets/images/plates/{filename}"
+        unit["plates"].append({
+            "id": plate_id,
+            "asset": asset_path,
+            "caption": caption,
+        })
+        plates.append({
+            "id": plate_id,
+            "asset": asset_path,
+            "title": caption,
+            "caption": f"{unit['title']} — {caption}",
+            "grade": unit["grade"],
+            "unitId": uid,
+        })
+
+    # 3. Apply presentation metadata, unitText, primary plate, and choice support.
+    units: List[dict] = []
+    for unit in all_units:
+        uid = unit["id"]
+        if uid not in UNIT_META:
+            raise SystemExit(f"missing UNIT_META for {uid}")
+        meta = UNIT_META[uid]
+        unit["template"] = meta["template"]
+        unit["accent"] = meta["accent"]
+        unit["figures"] = meta["figures"]
+        unit["unitText"] = "\n".join(
+            [t["title"] + "\n" + "\n".join(t["bullets"]) for t in unit["topics"]]
+        )
+        if unit["plates"]:
+            unit["plate"] = unit["plates"][0]
 
         for question in unit["questions"]:
             if question["kind"] == "choice":
@@ -431,6 +550,15 @@ def build_intro() -> dict:
             "methods": student_centred,
         })
 
+    for extra_topic in copy.deepcopy(INTRO_EXTRA_TOPICS):
+        add(extra_topic)
+
+    extra_text_lines: List[str] = []
+    for extra_topic in INTRO_EXTRA_TOPICS:
+        extra_text_lines.append(str(extra_topic["title"]))
+        extra_text_lines.extend(str(b) for b in extra_topic.get("bullets", []))
+        extra_text_lines.extend(str(i) for i in extra_topic.get("listItems", []))
+
     return {
         "id": "intro",
         "sectionId": "intro",
@@ -443,7 +571,7 @@ def build_intro() -> dict:
         "figures": INTRO_META["figures"],
         "topics": topics,
         "questions": [],
-        "unitText": read_docx_plain_text(INTRO_DOC),
+        "unitText": read_docx_plain_text(INTRO_DOC) + "\n" + "\n".join(extra_text_lines),
     }
 
 
@@ -675,12 +803,7 @@ def build_theatre() -> dict:
 # --------------------------------------------------------------- drawings ---
 
 def build_drawings(units: List[dict]) -> List[dict]:
-    """Extract the fourteen topic pictures and link each one to its topic.
-
-    The source document is a picture-only booklet (one page per topic), hence
-    the captions come from ``tools/drawings_content.py`` while the images are
-    copied byte for byte from the document, in document order.
-    """
+    """Extract the 14 booklet drawings + 6 Grade 3 drawings and link each one."""
     if not DRAWINGS_DOC.exists():
         raise SystemExit(f"missing drawings booklet: {DRAWINGS_DOC}")
     media = read_docx_media(DRAWINGS_DOC)
@@ -693,9 +816,18 @@ def build_drawings(units: List[dict]) -> List[dict]:
     for stale in DRAWING_DIR.glob("drawing-*.png"):
         stale.unlink()
 
+    raw_items: List[Tuple[Dict[str, str], bytes]] = [
+        (spec, payload) for spec, (_target, payload) in zip(DRAWINGS, media)
+    ]
+    for extra in EXTRA_DRAWINGS:
+        extra_path = EXTRA_DRAWINGS_DIR / extra["file"]
+        if not extra_path.exists():
+            raise SystemExit(f"missing extra drawing: {extra_path}")
+        raw_items.append((extra, extra_path.read_bytes()))
+
     by_id = {unit["id"]: unit for unit in units}
     drawings: List[dict] = []
-    for index, (spec, (_target, payload)) in enumerate(zip(DRAWINGS, media), start=1):
+    for index, (spec, payload) in enumerate(raw_items, start=1):
         unit = by_id.get(spec["unitId"])
         if unit is None:
             raise SystemExit(f"drawing {index}: unknown unit {spec['unitId']}")
@@ -725,6 +857,7 @@ def build_drawings(units: List[dict]) -> List[dict]:
 
 def build_glossary(units: List[dict], intro: dict) -> List[dict]:
     by_id = {unit["id"]: unit for unit in units}
+    by_id["intro"] = intro
     corpus = "\n".join([intro["unitText"]] + [unit["unitText"] for unit in units])
     entries = [
         ("التخطيط في العمل الفني", "يبدأ العمل الفني بفكرة واضحة، ويُترجم مضمونها إلى تخطيط مبسط يحدد الشكل العام والعناصر والأبعاد.", "g1-u1", "t2"),
@@ -739,6 +872,8 @@ def build_glossary(units: List[dict], intro: dict) -> List[dict]:
         ("الوحدات الزخرفية", "تُستمد الوحدات الزخرفية من عناصر الطبيعة، مثل العناصر النباتية والحيوانية والآدمية، كما تُستمد من الأشكال الهندسية.", "g1-u2", "t3"),
         ("التكرار والتماثل", "التكرار هو إعادة الوحدة الزخرفية وفق نظام معين.", "g1-u2", "t4"),
         ("التشعب", "التشعب هو امتداد العناصر الزخرفية من نقطة أو من خط.", "g1-u2", "t4"),
+        ("إفراد المجسم", "يتكون إفراد المكعب أو الصندوق من أوجه هندسية متصلة بألسنة لصق تطوى عند الحواف لتكوين المجسم الثلاثي الأبعاد.", "g1-u3", "t1"),
+        ("الفخار والتزجيج", "تُجفّف القطع الطينية تدريجياً في الظل قبل إدخالها فرن الفخر لتكتسب الصلابة، ثم تُطلى بطبقة التزجيج لإكسابها اللمعان ومقاومة الماء.", "g1-u3", "t2"),
         ("الفنون القديمة في بلاد الرافدين", "من مظاهر الفن في حضارات بلاد الرافدين الكتابة المسمارية والنقوش والرسوم الحيوانية والآدمية والهندسية.", "g1-u4", "t1"),
         ("التكوين الفني", "يقوم التكوين الفني على تنظيم العناصر داخل مساحة العمل بما يحقق الوحدة والاتزان.", "g2-u1", "t2"),
         ("نقطة التلاشي", "نقطة التلاشي هي الموضع الذي تبدو الخطوط المتوازية متجهة نحوه عند تمثيل العمق بصرياً.", "g2-u1", "t4"),
@@ -746,13 +881,19 @@ def build_glossary(units: List[dict], intro: dict) -> List[dict]:
         ("الظل الحقيقي والساقط", "الظل الحقيقي هو الجزء غير المضاء من الجسم، والظل الساقط هو الظل الذي يلقيه الجسم على سطح مجاور.", "g2-u1", "t5"),
         ("الأشكال الهندسية المنتظمة", "من الأشكال الهندسية الأساسية المربع والمثلث والدائرة.", "g2-u2", "t2"),
         ("قواعد التصميم الزخرفي", "تعتمد التصاميم الزخرفية على قواعد منها التكرار والتماثل والتناظر والتوزيع النجمي.", "g2-u2", "t3"),
+        ("الطباعة بالاستنسل", "تعتمد الطباعة بالاستنسل على رسم التصميم الزخرفي على ورق مقوى مشمع أو بلاستيك رقيق وتفريغ المساحات المراد تلوينها بدقة.", "g2-u3", "t1"),
+        ("المنوال البسيط", "يتكون النسيج اليدوي على المنوال البسيط من تعاشق مجموعتين متعامدتين من الخيوط هما خيوط السدى الطولية وخيوط اللحمة العرضية.", "g2-u3", "t2"),
+        ("التطعيم على الخشب", "التطعيم هو ترصيع حفر دقيقة في سطح الخشب بقطع مقصوصة من الصدف أو العاج أو أخشاب مغايرة اللون لإبراز الزخرفة.", "g2-u3", "t3"),
         ("الحرف والمصنوعات الشعبية", "من الحرف والمصنوعات الشعبية النسيج والسجاد والبسط والفخار والخزف وأعمال المعادن والنجارة والجلود.", "g2-u4", "t1"),
         ("الزخرفة الإسلامية", "من السمات البارزة في الزخرفة الإسلامية تنظيم الوحدات وتكرارها وملء المساحات بعلاقات زخرفية متناسقة.", "g2-u4", "t2"),
         ("الضوء والظل وإظهار الحجم", "يساعد الضوء والظل على إظهار حجم الأشكال وعمقها، ويعتمد التمثيل البصري على تدرج درجات الإضاءة والظل.", "g3-u1", "t1"),
         ("النسب والخطوط البنائية", "تساعد الخطوط البنائية على تنظيم الهيئة العامة وتحديد اتجاه الجسم وتوازنه.", "g3-u1", "t3"),
+        ("الطبيعة الصامتة", "الطبيعة الصامتة هي رسم مجموعة من العناصر الجامدة المختارة مثل الأواني الفخارية والزجاجية والفواكه والأقمشة في تكوين مترابط.", "g3-u1", "t4"),
         ("التحوير", "التحوير هو إعادة صياغة العنصر الطبيعي وتبسيط تفاصيله أو تعديلها بما يلائم البناء الزخرفي مع الاحتفاظ بسماته الأساسية.", "g3-u2", "t1"),
         ("الخط الكوفي", "الخط الكوفي من الخطوط العربية ذات الطابع الهندسي، وتتميز حروفه ببنائها القائم على الخطوط والزوايا.", "g3-u2", "t2"),
         ("الملصق وعناصر الاتصال", "الملصق أو البوستر وسيلة اتصال بصري تعتمد على وضوح الفكرة وقوة التعبير وسرعة التأثير في المتلقي.", "g3-u2", "t3"),
+        ("النحت على الجبس", "يتيح النحت البارز والغائر على ألواح الجبس حفر الزخارف الهندسية والنباتية بأدوات الكشط والحفر لإظهار تدرج الظل والضوء.", "g3-u3", "t2"),
+        ("المكرمية", "المكرمية حرفة يدوية تقوم على جدل الخيوط القطنية أو القنبية المتينة وعقدها يدوياً دون إبر لإنتاج معلقات جدارية وحاملات نباتات.", "g3-u3", "t4"),
         ("جماعة الرواد", "تأسست جماعة الرواد حول الفنان فائق حسن سنة ١٩٥٠، وجماعة بغداد للفن الحديث حول الفنان جواد سليم سنة ١٩٥١.", "g3-u4", "t1"),
     ]
     canonical_corpus = canon(corpus)
@@ -805,14 +946,14 @@ def main() -> None:
     glossary = build_glossary(units, intro)
 
     sections = [
-        {"id": "intro", "title": "مدخل إلى التربية الفنية", "subtitle": "المقدمة والأهداف العامة وطرائق التدريس", "kind": "intro"},
-        {"id": "g1", "title": "الصف الأول المتوسط", "subtitle": "ثلاث وحدات دراسية", "kind": "grade"},
-        {"id": "g2", "title": "الصف الثاني المتوسط", "subtitle": "ثلاث وحدات دراسية", "kind": "grade"},
-        {"id": "g3", "title": "الصف الثالث المتوسط", "subtitle": "ثلاث وحدات دراسية", "kind": "grade"},
+        {"id": "intro", "title": "مدخل إلى التربية الفنية", "subtitle": "المقدمة والأهداف العامة وطرائق التدريس وأسس التكوين", "kind": "intro"},
+        {"id": "g1", "title": "الصف الأول المتوسط", "subtitle": "أربع وحدات دراسية", "kind": "grade"},
+        {"id": "g2", "title": "الصف الثاني المتوسط", "subtitle": "أربع وحدات دراسية", "kind": "grade"},
+        {"id": "g3", "title": "الصف الثالث المتوسط", "subtitle": "أربع وحدات دراسية", "kind": "grade"},
         {"id": "lessons", "title": "دروس تطبيقية", "subtitle": "خطط الحصص النظرية والعملية", "kind": "lessons"},
         {"id": "drawings", "title": DRAWINGS_TITLE, "subtitle": DRAWINGS_SUBTITLE, "kind": "drawings"},
         {"id": "plates", "title": "اللوحات", "subtitle": "أعمال فنية وصور توضيحية", "kind": "plates"},
-        {"id": "theatre", "title": "مفردات الأنشطة المسرحية", "subtitle": "موضوعات الأنشطة المسرحية للمرحلة المتوسطة", "kind": "theatre"},
+        {"id": "theatre", "title": "مفردات الأنشطة المسرحية", "subtitle": THEATRE_SUBTITLE, "kind": "theatre"},
     ]
 
     curriculum = {
@@ -846,9 +987,9 @@ def main() -> None:
 
     topics = sum(len(unit["topics"]) for unit in curriculum["units"])
     questions = sum(len(unit["questions"]) for unit in curriculum["units"])
-    print(f"units: {len(curriculum['units'])} (9 grade units + intro + theatre)")
+    print(f"units: {len(curriculum['units'])} (12 grade units + intro + theatre)")
     print(f"topics: {topics}  questions: {questions}  lessons: {len(lessons)}  plates: {len(plates)}")
-    print(f"drawings: {len(drawings)} (one picture per topic)")
+    print(f"drawings: {len(drawings)}  glossary: {len(glossary)}")
 
 
 if __name__ == "__main__":

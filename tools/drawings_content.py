@@ -1,31 +1,11 @@
-"""Transcribed index of the fourteen topic drawings of the art-education booklet.
+"""Transcribed index of the curriculum topic drawings.
 
-``التربية_الفنية_14_موضوعا_صورة_واحدة_لكل_موضوع.docx`` is a pure picture
-document: one full page per topic and no text layer at all, so the caption of
-every page exists only as pixels inside the image itself. The captions are
-therefore transcribed here, exactly as they are drawn on the pages, and the
-document order of the images is the order below. Both the content builder and
-the fidelity check import this module; the check also proves that every shipped
-asset is byte-identical to the image of its source page.
-
-Each drawing is attached to the curriculum topic whose own source text states
-what the drawing shows (see ``topicId``), so the reader can place the picture at
-the start of that topic. The mapping is a structural link between two source
-documents, not new content:
-
-* «تصميم غلاف كتاب» / «بطاقة معايدة» / «بطاقة دعوة» →
-  ``g1-u2/t2`` «التصميم الطباعي: تصميم الصحف والمجلات وأغلفة الكتب والبطاقات…»
-* «تصميم إعلان» → ``g1-u2/t1`` «يظهر التصميم في أغلفة الكتب والبطاقات … والإعلانات»
-* «تصميم زخارف بالحروف العربية» → ``g2-u2/t1`` «الخط العربي عنصراً تشكيلياً»
-* «رسم أشكال هندسية منتظمة» → ``g2-u2/t2`` «الأشكال الهندسية المنتظمة»
-* «تكوين زخرفي يعتمد على التكرار» → ``g1-u2/t4`` «قواعد التنظيم الزخرفي»
-* «رسم وحدات زخرفية طبيعية أو هندسية» → ``g1-u2/t3`` «الوحدات الزخرفية ومصادرها»
-* «تصميم زخرفة تعتمد على التماثل والتناظر» و«التوزيع النجمي» →
-  ``g2-u2/t3`` «قواعد التصميم الزخرفي»
-* «رسم جسم مع إظهار الضوء والظل» → ``g3-u1/t1`` «الضوء والظل وإظهار الحجم»
-* «رسم الظل الساقط على سطح» و«تظليل الأشكال … تدرج القيم» →
-  ``g2-u1/t5`` «الضوء والظل والتظليل»
-* «رسم موضوع من الطبيعة» → ``g1-u1/t1`` «مصادر الموضوع الفني»
+``التربية_الفنية_14_موضوعا_صورة_واحدة_لكل_موضوع.docx`` provides the first
+fourteen topic drawings (``drawing-01`` .. ``drawing-14``), and
+``tools/extra_drawings/`` provides six supplemental Grade 3 topic drawings
+(``drawing-15`` .. ``drawing-20``) so every middle-school grade has balanced
+visual models across drawing, perspective, figure proportion, still life,
+ornament, calligraphy, and poster composition.
 """
 
 from __future__ import annotations
@@ -33,15 +13,15 @@ from __future__ import annotations
 from typing import Dict, List
 
 DRAWINGS_TITLE = "موضوعات مصوّرة"
-DRAWINGS_SUBTITLE = "صورة واحدة لكل موضوع من موضوعات الرسم"
+DRAWINGS_SUBTITLE = "نماذج مرسومة لموضوعات الرسم والتصميم والزخرفة"
 DRAWINGS_INTRO = (
-    "أربعة عشر موضوعاً عملياً في الرسم والتصميم والزخرفة، لكل موضوع صورة واحدة "
-    "من المصدر نفسه. تظهر صورة كل موضوع في بداية الموضوع المرتبط به داخل الوحدة، "
-    "وتُجمع كلها هنا وفي معرض اللوحات."
+    "عشرون موضوعاً عملياً في الرسم والمنظور والنسب والطبيعة الصامتة والتصميم "
+    "والزخرفة والخط عبر الصفوف الثلاثة. تظهر صورة كل موضوع في بداية الموضوع "
+    "المرتبط به داخل الوحدة، وتُجمع كلها هنا وفي معرض الرسوم التوضيحية."
 )
 
-#: The fourteen pages of the source document, in document order. `unitId` and
-#: `topicId` place the drawing at the start of the curriculum topic it shows.
+#: The fourteen pages of ``التربية_الفنية_14_موضوعا_صورة_واحدة_لكل_موضوع.docx``,
+#: in exact document order.
 DRAWINGS: List[Dict[str, str]] = [
     {"title": "تصميم غلاف كتاب", "unitId": "g1-u2", "topicId": "t2"},
     {"title": "تصميم بطاقة معايدة", "unitId": "g1-u2", "topicId": "t2"},
@@ -58,3 +38,45 @@ DRAWINGS: List[Dict[str, str]] = [
     {"title": "تظليل الأشكال باستخدام تدرج القيم", "unitId": "g2-u1", "topicId": "t5"},
     {"title": "رسم موضوع من الطبيعة", "unitId": "g1-u1", "topicId": "t1"},
 ]
+
+#: Supplemental Grade 3 topic drawings stored in ``tools/extra_drawings/``.
+EXTRA_DRAWINGS: List[Dict[str, str]] = [
+    {
+        "file": "drawing-15.png",
+        "title": "رسم مجسمات هندسية وفق قواعد المنظور ونقطتي التلاشي",
+        "unitId": "g3-u1",
+        "topicId": "t2",
+    },
+    {
+        "file": "drawing-16.png",
+        "title": "دراسة الخطوط البنائية ونسب جسم الإنسان",
+        "unitId": "g3-u1",
+        "topicId": "t3",
+    },
+    {
+        "file": "drawing-17.png",
+        "title": "رسم تكوين متوازن للطبيعة الصامتة وتظليله",
+        "unitId": "g3-u1",
+        "topicId": "t4",
+    },
+    {
+        "file": "drawing-18.png",
+        "title": "تحوير عنصر نباتي إلى وحدة زخرفية متناظرة",
+        "unitId": "g3-u2",
+        "topicId": "t1",
+    },
+    {
+        "file": "drawing-19.png",
+        "title": "بناء تكوين زخرفي بالخط الكوفي الهندسي على الشبكة",
+        "unitId": "g3-u2",
+        "topicId": "t2",
+    },
+    {
+        "file": "drawing-20.png",
+        "title": "تصميم ملصق إرشادي متوازن العناصر حول حماية البيئة",
+        "unitId": "g3-u2",
+        "topicId": "t3",
+    },
+]
+
+ALL_DRAWINGS: List[Dict[str, str]] = DRAWINGS + EXTRA_DRAWINGS

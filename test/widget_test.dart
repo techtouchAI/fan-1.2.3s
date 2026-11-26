@@ -39,7 +39,7 @@ void main() {
     expect(directionality.textDirection, TextDirection.rtl);
   });
 
-  testWidgets('the unit reader switches between the three units of the grade',
+  testWidgets('the unit reader switches between the four units of the grade',
       (WidgetTester tester) async {
     await pumpScreen(
       tester,
@@ -55,6 +55,7 @@ void main() {
     final labels = <String>[
       '${toArabicDigits('1')}. التعبير الفني',
       '${toArabicDigits('2')}. التصميم والزخرفة',
+      '${toArabicDigits('3')}. الأشغال اليدوية والتشكيل المجسم',
       '${toArabicDigits('4')}. التذوق الفني وتاريخ الفن',
     ];
 
@@ -80,7 +81,7 @@ void main() {
     expect(header.unitId, 'g1-u4');
     final newBar = tester.widget<UnitSwitcherBar>(find.byType(UnitSwitcherBar));
     expect(newBar.current.id, 'g1-u4');
-    expect(newBar.units.length, 3);
+    expect(newBar.units.length, 4);
   });
 
   testWidgets('unit with multiple images renders all plates from the booklet',
@@ -399,4 +400,46 @@ void main() {
 
     expect(find.byType(NavigationRail), findsOneWidget);
   });
+
+  testWidgets('grade switcher pushed from home pops cleanly and auto-saves profile draft',
+      (WidgetTester tester) async {
+    final state = await pumpApplication(tester, size: const Size(900, 1400));
+    expect(state.gradeId, 'g1');
+
+    await tester.tap(find.byTooltip('تغيير الصف'));
+    await tester.pumpAndSettle();
+    expect(find.byType(GradePickerScreen), findsOneWidget);
+    expect(find.text('تغيير الصف الدراسي'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('profile-teacher')),
+      'أحمد الكناني',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('profile-school')),
+      'ثانوية الكندي للبنين',
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('grade-card-g3')));
+    await tester.pumpAndSettle();
+
+    expect(state.gradeId, 'g3');
+    expect(state.teacherProfile.teacherName, 'أحمد الكناني');
+    expect(state.teacherProfile.schoolName, 'ثانوية الكندي للبنين');
+    expect(find.byType(HomeScreen), findsOneWidget);
+    expect(find.byType(GradePickerScreen), findsNothing);
+  });
+
+  testWidgets('settings page displays corrected platforms label and updated counts',
+      (WidgetTester tester) async {
+    await pumpScreen(tester, const SettingsScreen(), size: const Size(900, 2600));
+    expect(find.text('المنصات'), findsOneWidget);
+    expect(find.text('المصالح'), findsNothing);
+  });
+
+  testWidgets('glossary includes shared theatre and introduction terms',
+      (WidgetTester tester) async {
+    await pumpScreen(tester, const GlossaryScreen(), size: const Size(900, 2400));
+    expect(find.text('السينوغرافيا'), findsOneWidget);
+  });
 }
+

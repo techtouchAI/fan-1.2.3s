@@ -2,19 +2,14 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
-import '../../domain/models/exam_paper.dart';
 import '../../domain/models/exam_draft_snapshot.dart';
+import '../../domain/models/exam_paper.dart';
 import '../../domain/models/exam_question_bank.dart';
 import '../../domain/models/library.dart';
 import '../../domain/repositories/exam_profile_repository.dart';
 import '../../domain/services/exam_paper_formatter.dart';
 
 /// Mutable draft of the exam paper while the teacher writes it.
-///
-/// The draft owns every editable value of the composer: the typography, the
-/// header fields, the three theoretical selections and the three practical
-/// slots. [paper] returns an immutable [ExamPaper] only when the draft is
-/// complete, so the screen, the exporter and the tests share one validation.
 class ExamComposerState extends ChangeNotifier {
   ExamComposerState({
     required Iterable<LearningUnit> units,
@@ -29,6 +24,8 @@ class ExamComposerState extends ChangeNotifier {
     schoolName = profile.schoolName;
     sectionName = profile.sectionName;
     teacherName = profile.teacherName;
+    headerConfig = ExamHeaderConfig(directorateLine: profile.directorateLine);
+    margins = profile.margins;
     academicYear = academicYearLabel(_now);
     final savedTypography = profile.typography;
     font = savedTypography.font;
@@ -52,34 +49,27 @@ class ExamComposerState extends ChangeNotifier {
   }
 
   static const int practicalSlotCount = 3;
+  static const int maxPracticalSlots = 5;
   static const int defaultPracticalDegree = 35;
 
-  /// The requested layout: 30 marks for the theory split into two questions of
-  /// 15 marks each, and 70 marks for the practical section.
   static const int defaultTheoryDegree = 30;
   static const int defaultTheoryQuestionDegree = 15;
   static const int defaultTheoryQuestionCount = 2;
   static const int defaultPracticalTotal = 70;
 
-  /// Questions documented in the curriculum, in source order.
   final List<ExamQuestionOption> options;
-
-  /// Prepared drawing topics offered by the practical section.
   final List<TopicDrawing> drawings;
-
   final DateTime _now;
 
-  // ------------------------------------------------------------ typography ---
+  // --------------------------------------------------- typography & margins ---
 
   ExamPaperFont font = ExamPaperFont.traditionalArabic;
   int? headerFontSize = ExamPaperTypography.defaultHeaderFontSize;
   int? bodyFontSize = ExamPaperTypography.defaultBodyFontSize;
   int? headingFontSize = ExamPaperTypography.defaultHeadingFontSize;
-
-  /// Line spacing as a percentage; 100 % keeps the official layout.
   int? lineSpacingPercent = ExamPaperTypography.defaultLineSpacingPercent;
+  ExamPageMargins margins = ExamPageMargins.standard;
 
-  /// Null while one of the sizes or the spacing is empty or out of range.
   ExamPaperTypography? get typography {
     final header = headerFontSize;
     final body = bodyFontSize;
@@ -101,49 +91,45 @@ class ExamComposerState extends ChangeNotifier {
   }
 
   void setFont(ExamPaperFont value) {
-    if (font == value) {
-      return;
-    }
+    if (font == value) return;
     font = value;
     notifyListeners();
   }
 
   void setHeaderFontSize(int? value) {
-    if (headerFontSize == value) {
-      return;
-    }
+    if (headerFontSize == value) return;
     headerFontSize = value;
     notifyListeners();
   }
 
   void setBodyFontSize(int? value) {
-    if (bodyFontSize == value) {
-      return;
-    }
+    if (bodyFontSize == value) return;
     bodyFontSize = value;
     notifyListeners();
   }
 
   void setHeadingFontSize(int? value) {
-    if (headingFontSize == value) {
-      return;
-    }
+    if (headingFontSize == value) return;
     headingFontSize = value;
     notifyListeners();
   }
 
   void setLineSpacingPercent(int? value) {
-    if (lineSpacingPercent == value) {
-      return;
-    }
+    if (lineSpacingPercent == value) return;
     lineSpacingPercent = value;
     notifyListeners();
   }
 
-  /// Restores the official spacing (100 %) with one tap.
-  void resetLineSpacing() => setLineSpacingPercent(ExamPaperTypography.officialLineSpacingPercent);
+  void resetLineSpacing() =>
+      setLineSpacingPercent(ExamPaperTypography.officialLineSpacingPercent);
 
-  // ------------------------------------------------------------------ info ---
+  void setMargins(ExamPageMargins value) {
+    if (margins == value) return;
+    margins = value;
+    notifyListeners();
+  }
+
+  // -------------------------------------------------------- info & header ---
 
   String schoolName = '';
   String gradeLabel = '';
@@ -152,8 +138,8 @@ class ExamComposerState extends ChangeNotifier {
   String academicYear = '';
   ExamTerm term = ExamTerm.midYear;
   ExamRound round = ExamRound.first;
+  ExamHeaderConfig headerConfig = ExamHeaderConfig.defaults;
 
-  /// The academic year proposed by the device clock, e.g. `2025 – 2026`.
   String get suggestedAcademicYear => academicYearLabel(_now);
 
   void setSchoolName(String value) {
@@ -182,18 +168,24 @@ class ExamComposerState extends ChangeNotifier {
   }
 
   void setTerm(ExamTerm value) {
-    if (term == value) {
-      return;
-    }
+    if (term == value) return;
     term = value;
     notifyListeners();
   }
 
   void setRound(ExamRound value) {
-    if (round == value) {
-      return;
-    }
+    if (round == value) return;
     round = value;
+    notifyListeners();
+  }
+
+  void updateHeaderConfig(ExamHeaderConfig value) {
+    headerConfig = value;
+    notifyListeners();
+  }
+
+  void resetHeaderConfig() {
+    headerConfig = ExamHeaderConfig.defaults;
     notifyListeners();
   }
 
@@ -208,8 +200,6 @@ class ExamComposerState extends ChangeNotifier {
   int? theoryDegree = defaultTheoryDegree;
   int? practicalDegree = defaultPracticalTotal;
 
-  /// Editable captions; they keep the official wording until the teacher
-  /// changes them.
   String theoryHeader = ExamPaper.defaultTheoryHeader;
   String practicalHeader = ExamPaper.defaultPracticalHeader;
 
@@ -224,10 +214,12 @@ class ExamComposerState extends ChangeNotifier {
   bool isSelected(QuestionKind kind, String id) =>
       (_selected[kind] ?? const <String>{}).contains(id);
 
-  bool isInstructionCustomized(QuestionKind kind) => _customizedInstructions[kind] ?? false;
+  bool isInstructionCustomized(QuestionKind kind) =>
+      _customizedInstructions[kind] ?? false;
 
   String instructionOf(QuestionKind kind) =>
-      _instructions[kind] ?? defaultTheoryInstruction(kind, selectionOf(kind).length);
+      _instructions[kind] ??
+      defaultTheoryInstruction(kind, selectionOf(kind).length);
 
   int? degreeOf(QuestionKind kind) => _degrees[kind];
 
@@ -245,12 +237,78 @@ class ExamComposerState extends ChangeNotifier {
     notifyListeners();
   }
 
+  int _customCounter = 0;
+
+  String _nextCustomItemId(QuestionKind kind) {
+    while (true) {
+      _customCounter++;
+      final candidate = 'custom:${kind.name}:$_customCounter';
+      if (!_frozenItems.containsKey(candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  /// Adds a teacher-written statement, multiple-choice item, or open prompt
+  /// directly to the paper's theoretical question group and selects it.
+  String addCustomItem(
+    QuestionKind kind, {
+    required String prompt,
+    List<String> options = const <String>[],
+  }) {
+    final trimmed = prompt.trim();
+    final id = _nextCustomItemId(kind);
+    final cleanOptions = kind == QuestionKind.choice
+        ? List<String>.unmodifiable(
+            options.map((s) => s.trim()).where((s) => s.isNotEmpty),
+          )
+        : const <String>[];
+    final item = ExamTheoryItem(
+      id: id,
+      kind: kind,
+      prompt: trimmed,
+      options: cleanOptions,
+    );
+    _frozenItems[id] = item;
+    final selection = _selected.putIfAbsent(kind, () => <String>{})..add(id);
+    if (!isInstructionCustomized(kind)) {
+      _instructions[kind] = defaultTheoryInstruction(kind, selection.length);
+    }
+    notifyListeners();
+    return id;
+  }
+
+  /// Removes a teacher-written custom item from the draft.
+  void removeCustomItem(String id) {
+    if (!id.startsWith('custom:')) return;
+    final removed = _frozenItems.remove(id);
+    _itemOverrides.remove(id);
+    for (final kind in ExamTheoryQuestion.kinds) {
+      final sel = _selected[kind];
+      if (sel != null && sel.remove(id) && !isInstructionCustomized(kind)) {
+        _instructions[kind] = defaultTheoryInstruction(kind, sel.length);
+      }
+    }
+    if (removed != null) {
+      notifyListeners();
+    }
+  }
+
+  List<ExamTheoryItem> customItemsOf(QuestionKind kind) => <ExamTheoryItem>[
+    for (final ExamTheoryItem item in _frozenItems.values)
+      if (item.kind == kind && item.isCustom) _itemOverrides[item.id] ?? item,
+  ];
+
   void setDegree(QuestionKind kind, int? degree) {
     _degrees[kind] = degree;
     notifyListeners();
   }
 
-  void setInstruction(QuestionKind kind, String instruction, {bool customized = true}) {
+  void setInstruction(
+    QuestionKind kind,
+    String instruction, {
+    bool customized = true,
+  }) {
     _instructions[kind] = instruction;
     _customizedInstructions[kind] = customized;
     notifyListeners();
@@ -276,29 +334,23 @@ class ExamComposerState extends ChangeNotifier {
   }
 
   void setTheoryHeader(String value) {
-    if (theoryHeader == value) {
-      return;
-    }
+    if (theoryHeader == value) return;
     theoryHeader = value;
     notifyListeners();
   }
 
   void setPracticalHeader(String value) {
-    if (practicalHeader == value) {
-      return;
-    }
+    if (practicalHeader == value) return;
     practicalHeader = value;
     notifyListeners();
   }
 
-  /// Restores both captions to the official wording.
   void resetHeaders() {
     theoryHeader = ExamPaper.defaultTheoryHeader;
     practicalHeader = ExamPaper.defaultPracticalHeader;
     notifyListeners();
   }
 
-  /// The items of one kind, in curriculum order (the order of the source file).
   List<ExamTheoryItem> selectedItems(QuestionKind kind) {
     final selection = _selected[kind] ?? const <String>{};
     final items = <String, ExamTheoryItem>{
@@ -316,8 +368,6 @@ class ExamComposerState extends ChangeNotifier {
     return List<ExamTheoryItem>.unmodifiable(items.values);
   }
 
-  /// Old v1 records cannot recover text that no longer exists. Keep the ids,
-  /// expose the loss, and block export until the teacher explicitly removes it.
   Set<String> get unresolvedSourceIds {
     return <String>{
       for (final entry in _selected.entries)
@@ -360,16 +410,144 @@ class ExamComposerState extends ChangeNotifier {
     (int sum, QuestionKind kind) => sum + selectedItems(kind).length,
   );
 
+  // --------------------------------------------------------- free questions ---
+
+  final List<ExamFreeQuestion> _freeQuestions = <ExamFreeQuestion>[];
+  int _freeCounter = 0;
+
+  List<ExamFreeQuestion> get freeQuestions =>
+      List<ExamFreeQuestion>.unmodifiable(_freeQuestions);
+
+  String _nextFreeId() {
+    while (true) {
+      _freeCounter++;
+      final id = 'free-$_freeCounter';
+      if (_freeQuestions.every((q) => q.id != id)) {
+        return id;
+      }
+    }
+  }
+
+  String addFreeQuestion({
+    String title = '',
+    int degree = ExamFreeQuestion.defaultDegree,
+    String choiceNote = '',
+    List<String> items = const <String>[''],
+    List<ExamQuestionBranch> branches = const <ExamQuestionBranch>[],
+    int answerLineCount = 0,
+  }) {
+    final id = _nextFreeId();
+    _freeQuestions.add(
+      ExamFreeQuestion(
+        id: id,
+        title: title,
+        degree: degree,
+        choiceNote: choiceNote,
+        items: List<String>.unmodifiable(items),
+        branches: List<ExamQuestionBranch>.unmodifiable(branches),
+        answerLineCount: answerLineCount,
+      ),
+    );
+    notifyListeners();
+    return id;
+  }
+
+  /// Adds one of the common Iraqi exam templates with a single tap.
+  String addTemplateFreeQuestion(String templateKey) {
+    switch (templateKey) {
+      case 'definitions':
+        return addFreeQuestion(
+          title: 'عرف ما يأتي :',
+          choiceNote: 'لثلاث فقط',
+          items: const <String>['', '', '', ''],
+        );
+      case 'blanks':
+        return addFreeQuestion(
+          title: 'املأ الفراغات الآتية بما يناسبها :',
+          items: const <String>[
+            '...........................',
+            '...........................',
+            '...........................',
+          ],
+        );
+      case 'reasons':
+        return addFreeQuestion(
+          title: 'علل ما يأتي تعليلاً فنياً دقيقاً :',
+          items: const <String>['', ''],
+        );
+      case 'compare':
+        return addFreeQuestion(
+          title: 'قارن بين كل مما يأتي :',
+          items: const <String>[''],
+          answerLineCount: 2,
+        );
+      case 'branches':
+        return addFreeQuestion(
+          title: 'أجب عن أحد الفرعين (أ) أو (ب) :',
+          choiceNote: 'ترك فرع واحد',
+          items: const <String>[],
+          branches: const <ExamQuestionBranch>[
+            ExamQuestionBranch(label: 'أ', prompt: 'عرف ما يأتي :', items: <String>['', '']),
+            ExamQuestionBranch(label: 'ب', prompt: 'عدد ما يأتي :', items: <String>['', '']),
+          ],
+        );
+      default:
+        return addFreeQuestion(title: 'أجب عما يأتي :', items: const <String>['']);
+    }
+  }
+
+  void updateFreeQuestion(int index, ExamFreeQuestion updated) {
+    if (index < 0 || index >= _freeQuestions.length) return;
+    _freeQuestions[index] = updated;
+    notifyListeners();
+  }
+
+  void removeFreeQuestion(int index) {
+    if (index < 0 || index >= _freeQuestions.length) return;
+    _freeQuestions.removeAt(index);
+    notifyListeners();
+  }
+
+  void moveFreeQuestion(int oldIndex, int newIndex) {
+    if (oldIndex < 0 ||
+        oldIndex >= _freeQuestions.length ||
+        newIndex < 0 ||
+        newIndex >= _freeQuestions.length ||
+        oldIndex == newIndex) {
+      return;
+    }
+    final moved = _freeQuestions.removeAt(oldIndex);
+    _freeQuestions.insert(newIndex, moved);
+    notifyListeners();
+  }
+
   // ------------------------------------------------------------- practical ---
 
   late List<ExamPracticalQuestion> practical;
 
+  void addPracticalSlot() {
+    if (practical.length >= maxPracticalSlots) return;
+    practical = <ExamPracticalQuestion>[
+      ...practical,
+      const ExamPracticalQuestion(prompt: '', degree: defaultPracticalDegree),
+    ];
+    notifyListeners();
+  }
+
+  void removePracticalSlot(int index) {
+    if (practical.length <= 1 || index < 0 || index >= practical.length) return;
+    final next = List<ExamPracticalQuestion>.of(practical)..removeAt(index);
+    practical = next;
+    notifyListeners();
+  }
+
   void selectDrawing(int index, TopicDrawing? drawing) {
-    if (index < 0 || index >= practical.length) {
-      return;
-    }
+    if (index < 0 || index >= practical.length) return;
     if (drawing == null) {
-      practical[index] = ExamPracticalQuestion(prompt: '', degree: practical[index].degree);
+      practical[index] = ExamPracticalQuestion(
+        prompt: '',
+        degree: practical[index].degree,
+      );
     } else {
       practical[index] = ExamPracticalQuestion(
         prompt: defaultPracticalPrompt(drawing.title),
@@ -382,18 +560,16 @@ class ExamComposerState extends ChangeNotifier {
   }
 
   void setPracticalPrompt(int index, String prompt) {
-    if (index < 0 || index >= practical.length) {
-      return;
-    }
+    if (index < 0 || index >= practical.length) return;
     practical[index] = practical[index].copyWith(prompt: prompt);
     notifyListeners();
   }
 
   void setPracticalSlotDegree(int index, int? degree) {
-    if (index < 0 || index >= practical.length) {
-      return;
-    }
-    practical[index] = practical[index].copyWith(degree: degree ?? ExamPaper.minDegree);
+    if (index < 0 || index >= practical.length) return;
+    practical[index] = practical[index].copyWith(
+      degree: degree ?? ExamPaper.minDegree,
+    );
     notifyListeners();
   }
 
@@ -426,21 +602,20 @@ class ExamComposerState extends ChangeNotifier {
       practicalDegree: practicalDegree ?? -1,
       theoryHeader: theoryHeader,
       practicalHeader: practicalHeader,
+      freeQuestions: List<ExamFreeQuestion>.unmodifiable(_freeQuestions),
+      headerConfig: headerConfig,
+      margins: margins,
     );
   }
 
-  /// A complete paper, or null while something is still missing.
   ExamPaper? get paper {
     if (unresolvedSourceIds.isNotEmpty) return null;
     final current = typography;
-    if (current == null) {
-      return null;
-    }
+    if (current == null) return null;
     final built = buildPaperWith(current);
     return built.isComplete ? built : null;
   }
 
-  /// Everything that still prevents the export, ready for the bottom bar.
   List<String> get issues {
     if (unresolvedSourceIds.isNotEmpty) {
       return <String>[
@@ -449,8 +624,6 @@ class ExamComposerState extends ChangeNotifier {
     }
     final current = typography;
     if (current == null) {
-      // Report the spacing on its own so the bottom bar points at the field
-      // that is actually empty.
       if (!ExamPaperTypography.isValidLineSpacing(lineSpacingPercent)) {
         if (ExamPaperTypography.isValidFontSize(headerFontSize) &&
             ExamPaperTypography.isValidFontSize(bodyFontSize) &&
@@ -463,14 +636,14 @@ class ExamComposerState extends ChangeNotifier {
     return buildPaperWith(current).issues;
   }
 
-  // Editing is local to the draft: the bundled curriculum never changes.
   final Map<String, ExamTheoryItem> _frozenItems = <String, ExamTheoryItem>{};
   final Map<String, ExamTheoryItem> _itemOverrides = <String, ExamTheoryItem>{};
 
   void editItem(ExamTheoryItem item) {
     if (!options.any((option) => option.id == item.id && option.question.kind == item.kind) &&
-        _frozenItems[item.id]?.kind != item.kind)
+        _frozenItems[item.id]?.kind != item.kind) {
       return;
+    }
     _itemOverrides[item.id] = ExamTheoryItem(
       id: item.id,
       kind: item.kind,
@@ -484,23 +657,24 @@ class ExamComposerState extends ChangeNotifier {
     final known = optionsOf(kind).map((option) => option.id).toSet();
     final selection = _selected.putIfAbsent(kind, () => <String>{});
     if (replace) selection.clear();
-    selection.addAll(ids.where(known.contains));
+    selection.addAll(
+      ids.where((id) => known.contains(id) || _frozenItems[id]?.kind == kind),
+    );
     if (!isInstructionCustomized(kind)) {
       _instructions[kind] = defaultTheoryInstruction(kind, selection.length);
     }
     notifyListeners();
   }
 
-  /// Random selection, but selected items always render in curriculum order.
   void generateBalancedExam({Set<String>? unitIds, Random? random, int perKind = 5}) {
     final rng = random ?? Random();
     _itemOverrides.clear();
     _frozenItems.clear();
     for (final kind in ExamTheoryQuestion.kinds) {
       final pool =
-          optionsOf(
-              kind,
-            ).where((option) => unitIds == null || unitIds.contains(option.unitId)).toList()
+          optionsOf(kind)
+              .where((option) => unitIds == null || unitIds.contains(option.unitId))
+              .toList()
             ..shuffle(rng);
       _selected[kind] = pool.take(perKind).map((option) => option.id).toSet();
       _customizedInstructions[kind] = false;
@@ -518,18 +692,16 @@ class ExamComposerState extends ChangeNotifier {
           drawingTitle: pool[i].title,
         );
       } else {
-        // Regeneration must not retain topics from a previously selected unit.
         practical[i] = ExamPracticalQuestion(prompt: '', degree: practical[i].degree);
       }
     }
     notifyListeners();
   }
 
-  /// Complete draft snapshot, including unfinished/invalid fields. Storing only
-  /// [paper] would silently lose a teacher's work before the paper is complete.
   Map<String, dynamic> toDraft() => <String, dynamic>{
     'version': ExamDraftSnapshot.currentVersion,
-    if (restorationWarnings.isNotEmpty) 'restorationWarnings': List<String>.of(restorationWarnings),
+    if (restorationWarnings.isNotEmpty)
+      'restorationWarnings': List<String>.of(restorationWarnings),
     'schoolName': schoolName,
     'gradeLabel': gradeLabel,
     'sectionName': sectionName,
@@ -546,6 +718,11 @@ class ExamComposerState extends ChangeNotifier {
     'practicalDegree': practicalDegree,
     'theoryHeader': theoryHeader,
     'practicalHeader': practicalHeader,
+    'headerConfig': headerConfig.toJson(),
+    'margins': margins.toJson(),
+    'freeQuestions': <Map<String, dynamic>>[
+      for (final ExamFreeQuestion fq in _freeQuestions) fq.toJson(),
+    ],
     'items': <Map<String, dynamic>>[
       for (final item in <String, ExamTheoryItem>{
         for (final kind in ExamTheoryQuestion.kinds)
@@ -573,7 +750,8 @@ class ExamComposerState extends ChangeNotifier {
       for (final kind in ExamTheoryQuestion.kinds) kind.name: degreeOf(kind),
     },
     'customized': <String, dynamic>{
-      for (final kind in ExamTheoryQuestion.kinds) kind.name: isInstructionCustomized(kind),
+      for (final kind in ExamTheoryQuestion.kinds)
+        kind.name: isInstructionCustomized(kind),
     },
     'answerLines': <String, dynamic>{
       for (final kind in ExamTheoryQuestion.kinds) kind.name: answerLineCountOf(kind),
@@ -599,7 +777,6 @@ class ExamComposerState extends ChangeNotifier {
   };
 
   void restoreDraft(Map<String, dynamic> rawDraft) {
-    // Validate the complete nested document before mutating any state.
     final snapshot = ExamDraftSnapshot.decode(rawDraft);
     final draft = snapshot.toJson();
     final frozen = <String, ExamTheoryItem>{};
@@ -609,7 +786,9 @@ class ExamComposerState extends ChangeNotifier {
         id: item['id'] as String,
         kind: QuestionKind.values.firstWhere((v) => v.name == item['kind']),
         prompt: item['prompt'] as String,
-        options: List<String>.unmodifiable(item['options'] as List? ?? const <String>[]),
+        options: List<String>.unmodifiable(
+          item['options'] as List? ?? const <String>[],
+        ),
       );
     }
     _frozenItems
@@ -627,8 +806,10 @@ class ExamComposerState extends ChangeNotifier {
         draft[key] is String ? draft[key] as String : fallback;
     int? number(String key, int? fallback) =>
         draft.containsKey(key) ? (draft[key] as num?)?.toInt() : fallback;
-    Map<String, dynamic> map(String key) =>
-        draft[key] is Map ? Map<String, dynamic>.from(draft[key] as Map) : <String, dynamic>{};
+    Map<String, dynamic> map(String key) => draft[key] is Map
+        ? Map<String, dynamic>.from(draft[key] as Map)
+        : <String, dynamic>{};
+
     schoolName = text('schoolName', schoolName);
     gradeLabel = text('gradeLabel', gradeLabel);
     sectionName = text('sectionName', sectionName);
@@ -645,6 +826,35 @@ class ExamComposerState extends ChangeNotifier {
     practicalDegree = number('practicalDegree', practicalDegree);
     theoryHeader = text('theoryHeader', theoryHeader);
     practicalHeader = text('practicalHeader', practicalHeader);
+
+    if (draft['headerConfig'] is Map) {
+      headerConfig = ExamHeaderConfig.fromJson(
+        Map<String, dynamic>.from(draft['headerConfig'] as Map),
+      );
+    } else {
+      headerConfig = ExamHeaderConfig.defaults;
+    }
+
+    if (draft['margins'] is Map) {
+      margins = ExamPageMargins.fromJson(
+        Map<String, dynamic>.from(draft['margins'] as Map),
+      );
+    } else {
+      margins = ExamPageMargins.standard;
+    }
+
+    _freeQuestions.clear();
+    final rawFree = draft['freeQuestions'];
+    if (rawFree is List) {
+      for (final dynamic item in rawFree) {
+        if (item is Map) {
+          _freeQuestions.add(
+            ExamFreeQuestion.fromJson(Map<String, dynamic>.from(item)),
+          );
+        }
+      }
+    }
+
     for (final kind in ExamTheoryQuestion.kinds) {
       final ids = map('selection')[kind.name];
       _selected[kind] = ids is List ? ids.whereType<String>().toSet() : <String>{};
@@ -658,12 +868,14 @@ class ExamComposerState extends ChangeNotifier {
                   ExamTheoryQuestion.defaultAnswerLineCount)
               .clamp(1, ExamTheoryQuestion.maxAnswerLineCount);
     }
-    practical = List<ExamPracticalQuestion>.generate(
-      practicalSlotCount,
-      (_) => const ExamPracticalQuestion(prompt: '', degree: defaultPracticalDegree),
-    );
+
     final slots = draft['practical'];
     if (slots is List) {
+      final slotCount = max(practicalSlotCount, min(maxPracticalSlots, slots.length));
+      practical = List<ExamPracticalQuestion>.generate(
+        slotCount,
+        (_) => const ExamPracticalQuestion(prompt: '', degree: defaultPracticalDegree),
+      );
       for (var i = 0; i < practical.length && i < slots.length; i++) {
         final q = Map<String, dynamic>.from(slots[i] as Map);
         practical[i] = ExamPracticalQuestion(
@@ -673,7 +885,13 @@ class ExamComposerState extends ChangeNotifier {
           drawingTitle: q['drawingTitle'] as String?,
         );
       }
+    } else {
+      practical = List<ExamPracticalQuestion>.generate(
+        practicalSlotCount,
+        (_) => const ExamPracticalQuestion(prompt: '', degree: defaultPracticalDegree),
+      );
     }
+
     _itemOverrides.clear();
     final overrides = draft['overrides'];
     if (overrides is List) {
@@ -684,7 +902,9 @@ class ExamComposerState extends ChangeNotifier {
           id: id,
           kind: kind,
           prompt: raw['prompt'] as String,
-          options: List<String>.unmodifiable(raw['options'] as List? ?? const <String>[]),
+          options: List<String>.unmodifiable(
+            raw['options'] as List? ?? const <String>[],
+          ),
         );
       }
     }
@@ -711,10 +931,6 @@ class ExamComposerState extends ChangeNotifier {
 
   // ----------------------------------------------------------- question bank ---
 
-  /// The current selection as a bank entry, ready to be stored.
-  ///
-  /// Empty kinds are left out so the stored group stays compact; the ids are
-  /// the unique option ids (`unit:question`) produced by the formatter.
   ExamQuestionBankEntry toBankEntry({
     required String id,
     required String title,
@@ -727,28 +943,31 @@ class ExamComposerState extends ChangeNotifier {
       contentSnapshot: ExamDraftSnapshot.decode(toDraft()),
       selection: <String, List<String>>{
         for (final QuestionKind kind in ExamTheoryQuestion.kinds)
-          if (selectionOf(kind).isNotEmpty) kind.name: selectionOf(kind).toList(growable: false),
+          if (selectionOf(kind).isNotEmpty)
+            kind.name: selectionOf(kind).toList(growable: false),
       },
       practicalPrompts: <String>[
         for (final ExamPracticalQuestion question in practical)
           if (!question.isEmpty) question.prompt.trim(),
       ],
       theoryDegree: theoryDegree ?? ExamQuestionBankEntry.defaultTheoryDegree,
-      practicalDegree: practicalDegree ?? ExamQuestionBankEntry.defaultPracticalDegree,
+      practicalDegree:
+          practicalDegree ?? ExamQuestionBankEntry.defaultPracticalDegree,
       theoryHeader: theoryHeader,
       practicalHeader: practicalHeader,
     );
   }
 
-  /// Restores a group atomically. Legacy missing references remain explicit;
-  /// a group never silently retains text or drawing metadata from another one.
   void applyBankEntry(ExamQuestionBankEntry entry) {
     if (entry.contentDraft != null) {
       final merged = toDraft();
       final content = entry.contentDraft!;
       final known = options.map((option) => option.id).toSet();
       final selected = content['selection'] as Map? ?? const {};
-      if (selected.values.expand((ids) => ids as List).any((id) => !known.contains(id))) {
+      final hasForeignCurriculumId = selected.values
+          .expand((ids) => ids as List)
+          .any((id) => id is String && !id.startsWith('custom:') && !known.contains(id));
+      if (hasForeignCurriculumId) {
         throw const FormatException(
           'هذه المجموعة تتضمن أسئلة من صف آخر أو منهج غير متاح؛ لم تتغير الورقة.',
         );
@@ -761,6 +980,7 @@ class ExamComposerState extends ChangeNotifier {
         'degrees',
         'customized',
         'answerLines',
+        'freeQuestions',
         'practical',
         'overrides',
         'theoryDegree',
@@ -773,20 +993,23 @@ class ExamComposerState extends ChangeNotifier {
       restoreDraft(merged);
       return;
     }
-    if (entry.practicalPrompts.length > practicalSlotCount) {
-      throw const FormatException('المجموعة تتجاوز عدد الفقرات العملية المدعوم؛ لم تتغير الورقة.');
+    if (entry.practicalPrompts.length > maxPracticalSlots) {
+      throw const FormatException(
+        'المجموعة تتجاوز عدد الفقرات العملية المدعوم؛ لم تتغير الورقة.',
+      );
     }
     restorationWarnings
       ..clear()
       ..add(
         'مجموعة قديمة: استُعيدت الاختيارات من المنهج الحالي؛ لم تكن هذه المجموعة تحفظ النصوص والتعديلات مستقلةً.',
       );
-    // V1 groups are selection templates, not snapshots: clear previous local
-    // edits and drawing identities rather than retaining unrelated state.
     _itemOverrides.clear();
     _frozenItems.clear();
+    _freeQuestions.clear();
     for (final QuestionKind kind in ExamTheoryQuestion.kinds) {
-      _selected[kind] = <String>{...entry.selection[kind.name] ?? const <String>[]};
+      _selected[kind] = <String>{
+        ...entry.selection[kind.name] ?? const <String>[],
+      };
       _customizedInstructions[kind] = false;
       _instructions[kind] = defaultTheoryInstruction(kind, _selected[kind]!.length);
       _degrees[kind] = defaultTheoryQuestionDegree;
@@ -803,7 +1026,6 @@ class ExamComposerState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The profile saved after a successful export.
   ExamProfile toProfile() {
     final current = typography ?? const ExamPaperTypography();
     return ExamProfile(
@@ -811,7 +1033,9 @@ class ExamComposerState extends ChangeNotifier {
       gradeLabel: gradeLabel,
       sectionName: sectionName,
       teacherName: teacherName,
+      directorateLine: headerConfig.directorateLine,
       typography: current,
+      margins: margins,
     );
   }
 }

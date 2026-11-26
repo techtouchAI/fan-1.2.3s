@@ -237,7 +237,7 @@ class SettingsScreen extends StatelessWidget {
                 label: 'الدروس التطبيقية',
                 value: toArabicDigits('${state.library.lessons.length}'),
               ),
-              _InfoRow(label: 'المصالح', value: 'Android • Windows'),
+              const _InfoRow(label: 'المنصات', value: 'Android • Windows'),
             ],
           ),
         ),

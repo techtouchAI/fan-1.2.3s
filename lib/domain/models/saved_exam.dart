@@ -31,9 +31,18 @@ class SavedExamPaper {
   final String customTitle;
   final int revision;
   Map<String, dynamic> get draft => jsonDecode(_encodedDraft) as Map<String, dynamic>;
-  String get displayTitle => customTitle.trim().isNotEmpty
-      ? customTitle
-      : '${draft['term'] == 'endOfYear' ? 'امتحان آخر السنة' : 'ورقة أسئلة'} — ${draft['gradeLabel'] ?? ''}';
+
+  String get displayTitle {
+    if (customTitle.trim().isNotEmpty) return customTitle;
+    final prefix = switch (draft['term']) {
+      'endOfYear' => 'امتحان آخر السنة',
+      'firstSemester' => 'امتحان الفصل الأول',
+      'secondSemester' => 'امتحان الفصل الثاني',
+      'monthly' => 'امتحان شهري',
+      _ => 'ورقة أسئلة',
+    };
+    return '$prefix — ${draft['gradeLabel'] ?? ''}';
+  }
 
   SavedExamPaper copyWith({
     Map<String, dynamic>? draft,
@@ -49,6 +58,7 @@ class SavedExamPaper {
     customTitle: customTitle ?? this.customTitle,
     revision: revision ?? this.revision,
   );
+
   Map<String, dynamic> toJson() => <String, dynamic>{
     'id': id,
     'gradeId': gradeId,

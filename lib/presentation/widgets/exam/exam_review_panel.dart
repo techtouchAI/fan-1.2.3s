@@ -44,8 +44,12 @@ class ExamReviewPanel extends StatelessWidget {
               _row(
                 context,
                 'المحتوى',
-                '${toArabicDigits('${state.theoryItemCount}')} عنصراً نظرياً • '
-                    '${toArabicDigits('${state.practicalCount}')} سؤالاً عملياً',
+                <String>[
+                  '${toArabicDigits('${state.theoryItemCount}')} عنصراً نظرياً',
+                  if (state.freeQuestionCount > 0)
+                    '${toArabicDigits('${state.freeQuestionCount}')} سؤالاً حراً',
+                  '${toArabicDigits('${state.practicalCount}')} سؤالاً عملياً',
+                ].join(' • '),
               ),
               _row(context, 'الدرجات', _degreesLabel()),
             ],

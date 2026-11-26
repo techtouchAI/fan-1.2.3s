@@ -30,7 +30,12 @@ void main() {
 
   test('orders printable units by their actual curriculum numbers', () {
     final shuffled = library.unitsOf('g1').reversed;
-    expect(printableUnits(shuffled).map((unit) => unit.id), <String>['g1-u1', 'g1-u2', 'g1-u4']);
+    expect(printableUnits(shuffled).map((unit) => unit.id), <String>[
+      'g1-u1',
+      'g1-u2',
+      'g1-u3',
+      'g1-u4',
+    ]);
     expect(printableUnits(library.unitsOf('intro')), isEmpty);
     expect(printableUnits(library.unitsOf('theatre')), isEmpty);
   });
@@ -38,13 +43,13 @@ void main() {
   for (final selected in <Set<String>>[
     <String>{'g1-u2'},
     <String>{'g1-u4', 'g1-u1'},
-    <String>{'g1-u1', 'g1-u2', 'g1-u4'},
+    <String>{'g1-u1', 'g1-u2', 'g1-u3', 'g1-u4'},
   ]) {
     test('groups exactly the selected units by question type: $selected', () {
       final available = library.unitsOf('g1').reversed.toList();
       final plan = QuestionPrintPlan.fromSelection(available, selected);
       final selectedInOrder = <String>[
-        for (final id in <String>['g1-u1', 'g1-u2', 'g1-u4'])
+        for (final id in <String>['g1-u1', 'g1-u2', 'g1-u3', 'g1-u4'])
           if (selected.contains(id)) id,
       ];
 

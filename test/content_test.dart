@@ -14,25 +14,29 @@ void main() {
   });
 
   group('content integrity', () {
-    test('contains the nine curriculum units, the introduction and the theatre section', () {
+    test('contains the twelve curriculum units, the introduction and the theatre section', () {
       final gradeUnits = library.units
           .where((LearningUnit unit) => !unit.isIntroduction && !unit.isTheatre)
           .toList();
-      expect(gradeUnits.length, 9);
+      expect(gradeUnits.length, 12);
       expect(library.units.where((LearningUnit unit) => unit.isIntroduction).length, 1);
       expect(library.units.where((LearningUnit unit) => unit.isTheatre).length, 1);
-      expect(library.unitsOf('g1').length, 3);
-      expect(library.unitsOf('g2').length, 3);
-      expect(library.unitsOf('g3').length, 3);
+      expect(library.unitsOf('g1').length, 4);
+      expect(library.unitsOf('g2').length, 4);
+      expect(library.unitsOf('g3').length, 4);
     });
 
     test('every unit has topics, a template and its documented plates', () {
       const unitsWithPlates = <String>{
         'g1-u1',
         'g1-u2',
+        'g1-u3',
         'g1-u4',
+        'g2-u3',
         'g2-u4',
+        'g3-u1',
         'g3-u2',
+        'g3-u3',
         'g3-u4',
       };
       for (final unit in library.units) {
@@ -48,8 +52,8 @@ void main() {
     test('keeps the expected volume of topics and questions', () {
       final topics = library.units.fold<int>(0, (sum, unit) => sum + unit.topics.length);
       final questions = library.units.fold<int>(0, (sum, unit) => sum + unit.questions.length);
-      expect(topics, 37);
-      expect(questions, 73);
+      expect(topics, 54);
+      expect(questions, 96);
     });
 
     test('no empty statements, no duplicated identifiers', () {
@@ -121,8 +125,8 @@ void main() {
       }
     });
 
-    test('the fourteen topic drawings are attached to their curriculum topics', () {
-      expect(library.drawings.length, 14);
+    test('the twenty topic drawings are attached to their curriculum topics', () {
+      expect(library.drawings.length, 20);
       final ids = <String>{};
       for (final drawing in library.drawings) {
         expect(ids.add(drawing.id), isTrue, reason: 'duplicate drawing id ${drawing.id}');
@@ -203,7 +207,26 @@ void main() {
         expect(file.lengthSync(), lessThan(260 * 1024), reason: '${plate.asset} unexpectedly large');
         expect(file.lengthSync(), greaterThan(10 * 1024), reason: '${plate.asset} unexpectedly small');
       }
-      expect(library.plates.length, 10);
+      expect(library.plates.length, 20);
+    });
+
+    test('every bundled SVG illustration is linked into at least one unit or lesson', () {
+      final referenced = <String>{
+        for (final unit in library.units)
+          for (final figure in unit.figures) figure.asset.replaceAll('\\', '/'),
+        for (final lesson in library.lessons)
+          for (final figure in lesson.figures) figure.asset.replaceAll('\\', '/'),
+      };
+      final onDisk = Directory('assets/illustrations')
+          .listSync()
+          .whereType<File>()
+          .where((File file) => file.path.endsWith('.svg'))
+          .map((File file) => file.path.replaceAll('\\', '/'))
+          .toSet();
+      expect(onDisk.length, 18);
+      for (final svg in onDisk) {
+        expect(referenced, contains(svg), reason: 'unreferenced SVG $svg');
+      }
     });
 
     test('all referenced assets exist on disk', () {
