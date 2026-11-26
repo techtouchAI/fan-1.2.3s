@@ -223,7 +223,7 @@ void main() {
           .where((File file) => file.path.endsWith('.svg'))
           .map((File file) => file.path.replaceAll('\\', '/'))
           .toSet();
-      expect(onDisk.length, 18);
+      expect(onDisk.length, 20);
       for (final svg in onDisk) {
         expect(referenced, contains(svg), reason: 'unreferenced SVG $svg');
       }

@@ -438,7 +438,9 @@ void main() {
 
   testWidgets('glossary includes shared theatre and introduction terms',
       (WidgetTester tester) async {
-    await pumpScreen(tester, const GlossaryScreen(), size: const Size(900, 2400));
+    await pumpScreen(tester, const GlossaryScreen(), size: const Size(900, 1400));
+    await tester.enterText(find.byType(TextField), 'السينوغرافيا');
+    await tester.pump();
     expect(find.text('السينوغرافيا'), findsOneWidget);
   });
 }

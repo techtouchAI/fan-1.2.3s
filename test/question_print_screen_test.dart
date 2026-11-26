@@ -205,13 +205,13 @@ void main() {
     await tester.pump();
 
     expect(unitSelector('g1-u1'), findsNothing);
-    for (final id in <String>['g2-u1', 'g2-u2', 'g2-u4']) {
+    for (final id in <String>['g2-u1', 'g2-u2', 'g2-u3', 'g2-u4']) {
       expect(tester.widget<CheckboxListTile>(unitSelector(id)).value, isTrue);
     }
     await tester.tap(printButton);
     await tester.pump();
     expect(printed!.units.every((unit) => unit.sectionId == 'g2'), isTrue);
-    expect(printed!.questionCount, 23);
+    expect(printed!.questionCount, 31);
   });
 
   testWidgets('disables controls while printing and restores them afterwards', (tester) async {
