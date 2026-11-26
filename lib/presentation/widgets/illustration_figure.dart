@@ -27,9 +27,7 @@ class IllustrationFigure extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Material(
-          color: scheme.brightness == Brightness.light
-              ? const Color(0xFFFBF6EC)
-              : scheme.surfaceContainerHighest,
+          color: scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(AppRadii.lg),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -139,7 +137,7 @@ class _LegendChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
         border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Row(

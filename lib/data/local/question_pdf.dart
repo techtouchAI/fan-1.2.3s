@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 
 import '../../domain/models/question_print_settings.dart';
 import '../../domain/services/question_print_plan.dart';
+import 'arabic_pdf_font.dart';
 
 /// Produces an A4, right-to-left question-and-answer paper using bundled fonts.
 /// Pages continue naturally if the selected questions cannot fit on one sheet;
@@ -44,8 +45,8 @@ class QuestionPdfBuilder {
     final regularFont = await bundle.load(settings.font.regularAsset);
     final boldFont = await bundle.load(settings.font.boldAsset);
     final theme = pw.ThemeData.withFont(
-      base: pw.Font.ttf(regularFont),
-      bold: pw.Font.ttf(boldFont),
+      base: ArabicPdfFont(regularFont),
+      bold: ArabicPdfFont(boldFont),
     );
     // Slightly widen the font's narrow default space without shrinking text.
     final bodyStyle = pw.TextStyle(fontSize: settings.bodyFontSize.toDouble(), wordSpacing: 1.5);
@@ -101,7 +102,11 @@ class QuestionPdfBuilder {
                 // a future question is exceptionally long.
                 content.add(
                   pw.Text(
-                    formatPrintableQuestion(question, number),
+                    formatPrintableQuestion(
+                      question,
+                      number,
+                      includeAnswers: plan.settings.includeAnswers,
+                    ),
                     style: bodyStyle,
                     textAlign: pw.TextAlign.right,
                     overflow: pw.TextOverflow.span,

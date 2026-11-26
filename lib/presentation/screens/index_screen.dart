@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/dimens.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/utils/arabic_text.dart';
 import '../../core/widgets/app_page.dart';
 import '../../core/widgets/empty_state.dart';
@@ -31,8 +32,7 @@ class _IndexScreenState extends State<IndexScreen> {
     final state = AppScope.of(context);
     return SafeArea(
       bottom: false,
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
+      child: Column(
         children: <Widget>[
           AppPageHeader(
             title: 'الفهرس',
@@ -45,47 +45,54 @@ class _IndexScreenState extends State<IndexScreen> {
               ),
             ],
           ),
-          AppPage(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
               children: <Widget>[
-                TextField(
-                  textInputAction: TextInputAction.search,
-                  onChanged: (String value) => setState(() => _query = value),
-                  decoration: const InputDecoration(
-                    hintText: 'ابحث باسم الوحدة أو الموضوع…',
-                    prefixIcon: Icon(Icons.filter_list),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: <Widget>[
-                    _FilterChip(
-                      label: 'الكل',
-                      selected: _filter == _IndexFilter.all,
-                      onSelected: () => setState(() => _filter = _IndexFilter.all),
-                    ),
-                    _FilterChip(
-                      label: 'غير مقروء',
-                      selected: _filter == _IndexFilter.unread,
-                      onSelected: () => setState(() => _filter = _IndexFilter.unread),
-                    ),
-                    _FilterChip(
-                      label: 'المفضلة',
-                      selected: _filter == _IndexFilter.favorites,
-                      onSelected: () => setState(() => _filter = _IndexFilter.favorites),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                ...state.visibleSections.map(
-                  (ContentSection section) => _SectionBlock(
-                    section: section,
-                    state: state,
-                    filter: _filter,
-                    query: _query,
+                AppPage(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      TextField(
+                        textInputAction: TextInputAction.search,
+                        onChanged: (String value) => setState(() => _query = value),
+                        decoration: const InputDecoration(
+                          hintText: 'ابحث باسم الوحدة أو الموضوع…',
+                          prefixIcon: Icon(Icons.filter_list),
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.sm,
+                        children: <Widget>[
+                          _FilterChip(
+                            label: 'الكل',
+                            selected: _filter == _IndexFilter.all,
+                            onSelected: () => setState(() => _filter = _IndexFilter.all),
+                          ),
+                          _FilterChip(
+                            label: 'غير مقروء',
+                            selected: _filter == _IndexFilter.unread,
+                            onSelected: () => setState(() => _filter = _IndexFilter.unread),
+                          ),
+                          _FilterChip(
+                            label: 'المفضلة',
+                            selected: _filter == _IndexFilter.favorites,
+                            onSelected: () => setState(() => _filter = _IndexFilter.favorites),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      ...state.visibleSections.map(
+                        (ContentSection section) => _SectionBlock(
+                          section: section,
+                          state: state,
+                          filter: _filter,
+                          query: _query,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -98,11 +105,7 @@ class _IndexScreenState extends State<IndexScreen> {
 }
 
 class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
+  const _FilterChip({required this.label, required this.selected, required this.onSelected});
 
   final String label;
   final bool selected;
@@ -110,11 +113,7 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onSelected(),
-    );
+    return ChoiceChip(label: Text(label), selected: selected, onSelected: (_) => onSelected());
   }
 }
 
@@ -139,13 +138,15 @@ class _SectionBlock extends StatelessWidget {
         subtitle: section.subtitle,
         icon: Icons.edit_note_outlined,
         entries: state.library.lessons
-            .map((LessonPlan lesson) => _ExtraEntry(
-                  title: lesson.title,
-                  subtitle: lesson.summary,
-                  onTap: () => AppRoutes.openLesson(context, lesson),
-                  isFavorite: state.isFavorite(lesson.id),
-                  onFavorite: () => state.toggleFavorite(lesson.id),
-                ))
+            .map(
+              (LessonPlan lesson) => _ExtraEntry(
+                title: lesson.title,
+                subtitle: lesson.summary,
+                onTap: () => AppRoutes.openLesson(context, lesson),
+                isFavorite: state.isFavorite(lesson.id),
+                onFavorite: () => state.toggleFavorite(lesson.id),
+              ),
+            )
             .toList(growable: false),
         matchesQuery: query,
         filter: filter,
@@ -188,11 +189,13 @@ class _SectionBlock extends StatelessWidget {
         subtitle: '${toArabicDigits('${state.visibleDrawings.length}')} موضوعاً مصوّراً',
         icon: Icons.brush_outlined,
         entries: state.visibleDrawings
-            .map((TopicDrawing drawing) => _ExtraEntry(
-                  title: drawing.title,
-                  subtitle: drawing.caption,
-                  onTap: () => AppRoutes.openDrawing(context, drawing),
-                ))
+            .map(
+              (TopicDrawing drawing) => _ExtraEntry(
+                title: drawing.title,
+                subtitle: drawing.caption,
+                onTap: () => AppRoutes.openDrawing(context, drawing),
+              ),
+            )
             .toList(growable: false),
         matchesQuery: query,
         filter: filter,
@@ -204,30 +207,35 @@ class _SectionBlock extends StatelessWidget {
         subtitle: section.subtitle,
         icon: Icons.image_outlined,
         entries: state.visiblePlates
-            .map((Plate plate) => _ExtraEntry(
-                  title: plate.title,
-                  subtitle: plate.caption,
-                  onTap: () => AppRoutes.openPlate(context, plate),
-                ))
+            .map(
+              (Plate plate) => _ExtraEntry(
+                title: plate.title,
+                subtitle: plate.caption,
+                onTap: () => AppRoutes.openPlate(context, plate),
+              ),
+            )
             .toList(growable: false),
         matchesQuery: query,
         filter: filter,
       );
     }
 
-    final units = state.library.unitsOf(section.id).where((LearningUnit unit) {
-      if (filter == _IndexFilter.unread && state.isRead(unit.id)) {
-        return false;
-      }
-      if (filter == _IndexFilter.favorites && !state.isFavorite(unit.id)) {
-        return false;
-      }
-      if (query.trim().isNotEmpty) {
-        final needle = normalizeArabic(query.trim());
-        return normalizeArabic('${unit.title} ${unit.searchableText}').contains(needle);
-      }
-      return true;
-    }).toList(growable: false);
+    final units = state.library
+        .unitsOf(section.id)
+        .where((LearningUnit unit) {
+          if (filter == _IndexFilter.unread && state.isRead(unit.id)) {
+            return false;
+          }
+          if (filter == _IndexFilter.favorites && !state.isFavorite(unit.id)) {
+            return false;
+          }
+          if (query.trim().isNotEmpty) {
+            final needle = normalizeArabic(query.trim());
+            return normalizeArabic('${unit.title} ${unit.searchableText}').contains(needle);
+          }
+          return true;
+        })
+        .toList(growable: false);
 
     if (units.isEmpty) {
       return Padding(
@@ -306,7 +314,7 @@ class _UnitTile extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
                 child: isRead
                     ? Icon(Icons.check_rounded, color: accent, size: 22)
@@ -314,8 +322,8 @@ class _UnitTile extends StatelessWidget {
                         unit.isIntroduction
                             ? 'م'
                             : unit.isTheatre
-                                ? 'م.م'
-                                : toArabicDigits('${unit.order}'),
+                            ? 'م.م'
+                            : toArabicDigits('${unit.order}'),
                         style: theme.textTheme.titleLarge?.copyWith(color: accent),
                       ),
               ),
@@ -412,29 +420,27 @@ class _ExtraSection extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final needle = normalizeArabic(matchesQuery.trim());
-    final visible = entries.where((_ExtraEntry entry) {
-      if (filter == _IndexFilter.unread) {
-        return false;
-      }
-      if (filter == _IndexFilter.favorites && !entry.isFavorite) {
-        return false;
-      }
-      if (needle.isEmpty) {
-        return true;
-      }
-      return normalizeArabic('${entry.title} ${entry.subtitle}').contains(needle);
-    }).toList(growable: false);
+    final visible = entries
+        .where((_ExtraEntry entry) {
+          if (filter == _IndexFilter.unread) {
+            return false;
+          }
+          if (filter == _IndexFilter.favorites && !entry.isFavorite) {
+            return false;
+          }
+          if (needle.isEmpty) {
+            return true;
+          }
+          return normalizeArabic('${entry.title} ${entry.subtitle}').contains(needle);
+        })
+        .toList(growable: false);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          SectionHeader(
-            title: title,
-            subtitle: subtitle,
-            accent: scheme.tertiary,
-          ),
+          SectionHeader(title: title, subtitle: subtitle, accent: scheme.tertiary),
           if (visible.isEmpty)
             Text(
               filter == _IndexFilter.unread
@@ -465,7 +471,7 @@ class _ExtraSection extends StatelessWidget {
                             height: 42,
                             decoration: BoxDecoration(
                               color: scheme.tertiary.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(13),
+                              borderRadius: BorderRadius.circular(AppRadii.md),
                             ),
                             child: Icon(icon, size: 20, color: scheme.tertiary),
                           ),
@@ -514,7 +520,7 @@ Color _accent(ThemeData theme, String accent) {
     case 'gold':
       return theme.colorScheme.tertiary;
     case 'green':
-      return const Color(0xFF4E7C59);
+      return AppColors.fromAccent('green', theme.brightness == Brightness.dark);
     case 'ink':
       return theme.colorScheme.onSurfaceVariant;
     case 'primary':

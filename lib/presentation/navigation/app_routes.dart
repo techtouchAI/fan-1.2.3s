@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/models/library.dart';
 import '../screens/drawings_screen.dart';
+import '../screens/curriculum_result_screen.dart';
 import '../screens/drawing_viewer_screen.dart';
 import '../screens/exam_composer_screen.dart';
 import '../screens/favorites_screen.dart';
@@ -13,32 +14,47 @@ import '../screens/plates_screen.dart';
 import '../screens/question_print_screen.dart';
 import '../screens/quiz_screen.dart';
 import '../screens/search_screen.dart';
+import '../screens/saved_exams_screen.dart';
 import '../screens/unit_screen.dart';
 
 /// Central navigation helpers so that screens never build routes by hand.
 abstract final class AppRoutes {
   static Future<void> openUnit(BuildContext context, LearningUnit unit) {
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (BuildContext context) => UnitScreen(unitId: unit.id)));
+  }
+
+  static Future<void> openCurriculumResult(
+    BuildContext context, {
+    required String unitId,
+    String? topicId,
+    String? questionId,
+  }) {
     return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => UnitScreen(unitId: unit.id)),
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            CurriculumResultScreen(unitId: unitId, topicId: topicId, questionId: questionId),
+      ),
     );
   }
 
   static Future<void> openQuiz(BuildContext context, LearningUnit unit) {
-    return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => QuizScreen(unitId: unit.id)),
-    );
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (BuildContext context) => QuizScreen(unitId: unit.id)));
   }
 
   static Future<void> openExamComposer(BuildContext context) {
-    return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => const ExamComposerScreen()),
-    );
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (BuildContext context) => const ExamComposerScreen()));
   }
 
   static Future<void> openQuestionPrinting(BuildContext context) {
-    return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => const QuestionPrintScreen()),
-    );
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (BuildContext context) => const QuestionPrintScreen()));
   }
 
   static Future<void> openLesson(BuildContext context, LessonPlan lesson) {
@@ -48,21 +64,21 @@ abstract final class AppRoutes {
   }
 
   static Future<void> openLessons(BuildContext context) {
-    return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => const LessonsScreen()),
-    );
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (BuildContext context) => const LessonsScreen()));
   }
 
   static Future<void> openPlates(BuildContext context) {
-    return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => const PlatesScreen()),
-    );
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (BuildContext context) => const PlatesScreen()));
   }
 
   static Future<void> openDrawings(BuildContext context) {
-    return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => const DrawingsScreen()),
-    );
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (BuildContext context) => const DrawingsScreen()));
   }
 
   static Future<void> openDrawing(BuildContext context, TopicDrawing drawing) {
@@ -83,31 +99,38 @@ abstract final class AppRoutes {
 
   static Future<void> openPlate(BuildContext context, Plate plate) {
     return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => PlateViewerScreen(plateId: plate.id)),
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => PlateViewerScreen(plateId: plate.id),
+      ),
     );
   }
 
   static Future<void> openPlateById(BuildContext context, String plateId) {
     return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => PlateViewerScreen(plateId: plateId)),
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => PlateViewerScreen(plateId: plateId),
+      ),
     );
   }
 
   static Future<void> openGlossary(BuildContext context) {
-    return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => const GlossaryScreen()),
-    );
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (BuildContext context) => const GlossaryScreen()));
   }
 
+  static Future<void> openSavedExams(BuildContext context) =>
+      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const SavedExamsScreen()));
+
   static Future<void> openSearch(BuildContext context) {
-    return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => const SearchScreen()),
-    );
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (BuildContext context) => const SearchScreen()));
   }
 
   static Future<void> openFavorites(BuildContext context) {
-    return Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => const FavoritesScreen()),
-    );
+    return Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (BuildContext context) => const FavoritesScreen()));
   }
 }

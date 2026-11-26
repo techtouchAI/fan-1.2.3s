@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/local/asset_content_repository.dart';
 import '../../data/local/prefs_progress_repository.dart';
+import '../../data/local/saved_exam_store.dart';
+import '../../data/local/prefs_exam_profile_repository.dart';
+import '../../domain/repositories/exam_profile_repository.dart';
 import '../../domain/models/library.dart';
 import '../../domain/models/progress.dart';
 import '../../domain/repositories/content_repository.dart';
@@ -20,39 +25,89 @@ class MirsamBootstrap extends StatefulWidget {
     super.key,
     this.contentRepository,
     this.progressRepository,
+    this.profileRepository,
+    this.savedExamStoreLoader,
   });
 
   final ContentRepository? contentRepository;
   final ProgressRepository? progressRepository;
+  final ExamProfileRepository? profileRepository;
+  final Future<SavedExamStore> Function()? savedExamStoreLoader;
 
   @override
   State<MirsamBootstrap> createState() => _MirsamBootstrapState();
 }
 
-class _MirsamBootstrapState extends State<MirsamBootstrap> {
+class _MirsamBootstrapState extends State<MirsamBootstrap> with WidgetsBindingObserver {
   late Future<_BootstrapData> _future;
+  AppState? _loadedState;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _future = _load();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      final papers = _loadedState?.savedExams;
+      if (papers != null) unawaited(papers.flush());
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // In-flight writes are not cancelled: they still complete at the store.
+    super.dispose();
   }
 
   Future<_BootstrapData> _load() async {
     final contentRepository = widget.contentRepository ?? const AssetContentRepository();
     final progressRepository = widget.progressRepository ?? const PrefsProgressRepository();
+    final profileRepository = widget.profileRepository ?? const PrefsExamProfileRepository();
+    final warnings = <String>[];
+    Future<T> optional<T>(Future<T> Function() load, T Function() fallback, String message) async {
+      try {
+        return await load();
+      } catch (error, stack) {
+        debugPrint('Optional startup data: $error\n$stack');
+        warnings.add(message);
+        return fallback();
+      }
+    }
+
+    const storeWarning =
+        'تعذّر فتح مخزن الأوراق. يمكنك قراءة المنهج والتصدير؛ الحفظ التلقائي غير متاح حتى إعادة المحاولة عند تشغيل التطبيق.';
     final results = await Future.wait<Object>(<Future<Object>>[
       contentRepository.load(),
       progressRepository.load(),
-    ]);
-    final library = results[0] as Library;
-    return _BootstrapData(
-      state: AppState(
-        library: library,
-        progress: results[1] as ReadingProgress,
-        progressRepository: progressRepository,
+      optional<SavedExamStore>(
+        widget.savedExamStoreLoader ?? SavedExamStore.open,
+        () => UnavailableSavedExamStore(storeWarning),
+        storeWarning,
       ),
+      optional<ExamProfile>(
+        profileRepository.load,
+        () => const ExamProfile(),
+        'تعذّر تحميل ملف المدرس؛ لم تُحذف بياناته الأصلية ويمكن متابعة استخدام المنهج.',
+      ),
+    ]);
+    final state = AppState(
+      library: results[0] as Library,
+      progress: results[1] as ReadingProgress,
+      progressRepository: progressRepository,
+      savedExamStore: results[2] as SavedExamStore,
+      teacherProfile: results[3] as ExamProfile,
+      profileRepository: profileRepository,
+      startupWarnings: List<String>.unmodifiable(warnings),
     );
+    _loadedState = state;
+    return _BootstrapData(state: state);
   }
 
   @override
@@ -75,10 +130,7 @@ class _MirsamBootstrapState extends State<MirsamBootstrap> {
             home: const _SplashScreen(),
           );
         }
-        return AppScope(
-          state: data.state,
-          child: const MirsamApp(),
-        );
+        return AppScope(state: data.state, child: const MirsamApp());
       },
     );
   }

@@ -9,11 +9,7 @@ import '../models/library.dart';
 
 /// One documented question offered by the composer, with its unit title.
 class ExamQuestionOption {
-  const ExamQuestionOption({
-    required this.question,
-    required this.unitId,
-    required this.unitTitle,
-  });
+  const ExamQuestionOption({required this.question, required this.unitId, required this.unitTitle});
 
   final Question question;
   final String unitId;
@@ -33,9 +29,7 @@ List<ExamQuestionOption> examQuestionOptions(Iterable<LearningUnit> units) {
   final options = <ExamQuestionOption>[];
   for (final LearningUnit unit in _orderedUnits(units)) {
     for (final Question question in unit.questions) {
-      options.add(
-        ExamQuestionOption(question: question, unitId: unit.id, unitTitle: unit.title),
-      );
+      options.add(ExamQuestionOption(question: question, unitId: unit.id, unitTitle: unit.title));
     }
   }
   return List<ExamQuestionOption>.unmodifiable(options);
@@ -49,12 +43,9 @@ List<LearningUnit> _orderedUnits(Iterable<LearningUnit> units) {
   for (final LearningUnit unit in list) {
     sectionOrder.putIfAbsent(unit.sectionId, () => sectionOrder.length);
   }
-  final decorated = <_IndexedUnit>[
-    for (var i = 0; i < list.length; i++) _IndexedUnit(list[i], i),
-  ];
+  final decorated = <_IndexedUnit>[for (var i = 0; i < list.length; i++) _IndexedUnit(list[i], i)];
   decorated.sort((_IndexedUnit a, _IndexedUnit b) {
-    final section =
-        sectionOrder[a.unit.sectionId]!.compareTo(sectionOrder[b.unit.sectionId]!);
+    final section = sectionOrder[a.unit.sectionId]!.compareTo(sectionOrder[b.unit.sectionId]!);
     if (section != 0) {
       return section;
     }
@@ -99,10 +90,7 @@ String examTheoryItemText(ExamTheoryItem item) {
 
 /// Blank numbered answer lines of an enumeration question.
 List<String> examAnswerLines(ExamTheoryQuestion question) {
-  return <String>[
-    for (var i = 0; i < question.answerLineCount; i++)
-      '${i + 1}- ${'.' * 46}',
-  ];
+  return <String>[for (var i = 0; i < question.answerLineCount; i++) '${i + 1}- ${'.' * 46}'];
 }
 
 /// The whole paper as readable text: used by the review panel.
@@ -119,7 +107,13 @@ String examPaperAsPlainText(ExamPaper paper) {
     ..writeln(info.classLine)
     ..writeln('الرقم الامتحاني :')
     ..writeln()
-    ..writeln(paper.theoryHeadingLine);
+    ..write(examPaperBodyAsPlainText(paper));
+  return buffer.toString();
+}
+
+/// Body only, for visual previews that render the structured header separately.
+String examPaperBodyAsPlainText(ExamPaper paper) {
+  final buffer = StringBuffer()..writeln(paper.theoryHeadingLine);
 
   var theoryIndex = 0;
   for (final ExamTheoryQuestion question in paper.theory) {
@@ -144,13 +138,15 @@ String examPaperAsPlainText(ExamPaper paper) {
   buffer.writeln(paper.practicalHeadingLine);
   for (var i = 0; i < paper.practical.length; i++) {
     final ExamPracticalQuestion question = paper.practical[i];
-    buffer.writeln('${examQuestionNumber(i)}: ${question.prompt.trim()}   ( ${question.degree} درجة )');
+    buffer.writeln(
+      '${examQuestionNumber(i)}: ${question.prompt.trim()}   ( ${question.degree} درجة )',
+    );
   }
   buffer
     ..writeln()
     ..writeln('تمنياتي لكم بالتوفيق والنجاح')
     ..writeln('مدرس المادة')
-    ..writeln(info.teacherName.trim());
+    ..writeln(paper.info.teacherName.trim());
   return buffer.toString();
 }
 

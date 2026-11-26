@@ -216,7 +216,7 @@ class _CountList extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(AppRadii.xl),
                     border: Border.all(color: theme.colorScheme.outlineVariant),
                   ),
                   child: Text(

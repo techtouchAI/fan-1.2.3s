@@ -8,6 +8,7 @@ import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/section_header.dart';
 import '../../data/local/question_pdf.dart';
 import '../../domain/models/question_print_settings.dart';
+import '../../domain/models/library.dart';
 import '../../domain/services/question_print_plan.dart';
 import '../state/app_state.dart';
 import '../widgets/text_scale_controls.dart';
@@ -30,6 +31,8 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
   String? _selectionGrade;
   bool _initialized = false;
   bool _printing = false;
+  bool _includeAnswers = true;
+  final Set<QuestionKind> _kinds = QuestionKind.values.toSet();
   QuestionPrintFont _font = QuestionPrintFont.plex;
   final _bodySize = TextEditingController(text: '${QuestionPrintSettings.defaultBodyFontSize}');
   final _headingSize = TextEditingController(
@@ -61,7 +64,12 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
         !QuestionPrintSettings.isValidFontSize(heading)) {
       return null;
     }
-    return QuestionPrintSettings(font: _font, bodyFontSize: body!, headingFontSize: heading!);
+    return QuestionPrintSettings(
+      font: _font,
+      bodyFontSize: body!,
+      headingFontSize: heading!,
+      includeAnswers: _includeAnswers,
+    );
   }
 
   Future<void> _print(QuestionPrintPlan plan, String gradeTitle) async {
@@ -98,6 +106,7 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
       units,
       _selectedIds,
       settings: settings ?? const QuestionPrintSettings(),
+      allowedKinds: _kinds,
     );
 
     return Scaffold(
@@ -123,6 +132,45 @@ class _QuestionPrintScreenState extends State<QuestionPrintScreen> {
                     message: 'لا توجد وحدات تحتوي على أسئلة في هذا الصف.',
                   )
                 else ...<Widget>[
+                  SectionHeader(title: 'أنماط الأسئلة الرسمية', accent: scheme.primary),
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.xs,
+                    children: <Widget>[
+                      FilterChip(
+                        key: const ValueKey<String>('print-style-all'),
+                        label: const Text('كل الأنماط'),
+                        selected: _kinds.length == QuestionKind.values.length,
+                        onSelected: _printing
+                            ? null
+                            : (value) => setState(() {
+                                _kinds.clear();
+                                if (value) _kinds.addAll(QuestionKind.values);
+                              }),
+                      ),
+                      for (final kind in printableQuestionKinds)
+                        FilterChip(
+                          key: ValueKey<String>('print-style-${kind.name}'),
+                          label: Text(kind.printHeading),
+                          selected: _kinds.contains(kind),
+                          onSelected: _printing
+                              ? null
+                              : (value) => setState(() {
+                                  value ? _kinds.add(kind) : _kinds.remove(kind);
+                                }),
+                        ),
+                    ],
+                  ),
+                  SwitchListTile(
+                    key: const ValueKey<String>('print-include-answers'),
+                    title: const Text('تضمين الأجوبة النموذجية'),
+                    subtitle: const Text('أوقفه لطباعة الأسئلة فقط'),
+                    value: _includeAnswers,
+                    onChanged: _printing
+                        ? null
+                        : (value) => setState(() => _includeAnswers = value),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
                   SectionHeader(
                     title: 'اختر الوحدات',
                     subtitle: 'حدد وحدة واحدة أو أكثر، أو اطبع جميع الوحدات.',

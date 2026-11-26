@@ -155,7 +155,7 @@ class _DefinitionPanel extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: scheme.surface,
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(AppRadii.xl),
                 ),
                 child: Text('مفهوم أساسي', style: theme.textTheme.labelMedium),
               ),
@@ -446,7 +446,7 @@ class _MaterialTile extends StatelessWidget {
                 height: 44,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
                 child: Icon(iconForTopic(topic.title), color: accent, size: 22),
               ),

@@ -2,6 +2,8 @@
 /// Flutter bindings and serialised to `shared_preferences`.
 library;
 
+import 'quiz_result.dart';
+
 enum AppThemeMode {
   system,
   light,
@@ -62,20 +64,23 @@ class ReadingProgress {
     this.lastUnitId,
     Map<String, double>? scrollOffsets,
     Map<String, int>? quizScores,
+    List<QuizResult>? quizHistory,
     this.themeMode = AppThemeMode.system,
     this.textScale = defaultTextScale,
     this.gradeId,
     this.font = AppFont.almarai,
-  })  : favorites = favorites ?? <String>{},
-        readUnits = readUnits ?? <String>{},
-        scrollOffsets = scrollOffsets ?? <String, double>{},
-        quizScores = quizScores ?? <String, int>{};
+  }) : favorites = favorites ?? <String>{},
+       readUnits = readUnits ?? <String>{},
+       scrollOffsets = scrollOffsets ?? <String, double>{},
+       quizScores = quizScores ?? <String, int>{},
+       quizHistory = quizHistory ?? <QuizResult>[];
 
   final Set<String> favorites;
   final Set<String> readUnits;
   String? lastUnitId;
   final Map<String, double> scrollOffsets;
   final Map<String, int> quizScores;
+  final List<QuizResult> quizHistory;
   AppThemeMode themeMode;
   double textScale;
 
@@ -97,6 +102,7 @@ class ReadingProgress {
       lastUnitId: lastUnitId,
       scrollOffsets: Map<String, double>.from(scrollOffsets),
       quizScores: Map<String, int>.from(quizScores),
+      quizHistory: List<QuizResult>.of(quizHistory),
       themeMode: themeMode,
       textScale: textScale,
       gradeId: gradeId,
@@ -112,6 +118,7 @@ class ReadingProgress {
       'lastUnitId': lastUnitId,
       'scrollOffsets': scrollOffsets,
       'quizScores': quizScores,
+      'quizHistory': quizHistory.map((score) => score.toJson()).toList(),
       'themeMode': themeMode.name,
       'textScale': textScale,
       'gradeId': gradeId,
@@ -128,6 +135,11 @@ class ReadingProgress {
       lastUnitId: json['lastUnitId'] as String?,
       scrollOffsets: _doubleMap(json['scrollOffsets']),
       quizScores: _intMap(json['quizScores']),
+      quizHistory: (json['quizHistory'] is List ? json['quizHistory'] as List : const <dynamic>[])
+          .map(QuizResult.tryRead)
+          .whereType<QuizResult>()
+          .take(100)
+          .toList(),
       themeMode: AppThemeMode.parse(json['themeMode'] as String?),
       // An unversioned document was written when the application started at
       // 100 %, so it is migrated to the new starting size exactly once.

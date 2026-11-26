@@ -25,11 +25,11 @@ void main() {
     test('adapts the true/false instruction to the number of statements', () {
       expect(defaultTheoryInstruction(QuestionKind.trueFalse, 3), contains('لثلاث فقط'));
       expect(defaultTheoryInstruction(QuestionKind.trueFalse, 2), contains('لاثنين فقط'));
+      expect(defaultTheoryInstruction(QuestionKind.trueFalse, 0), isNot(contains('فقط')));
       expect(
-        defaultTheoryInstruction(QuestionKind.trueFalse, 0),
-        isNot(contains('فقط')),
+        defaultTheoryInstruction(QuestionKind.choice, 1),
+        'اختر الاجابة الصحيحة ما بين الاقواس :',
       );
-      expect(defaultTheoryInstruction(QuestionKind.choice, 1), 'اختر الاجابة الصحيحة ما بين الاقواس :');
     });
 
     test('numbers the questions with Western digits like the paper', () {
@@ -60,11 +60,7 @@ void main() {
     });
 
     test('renders each question kind the way it is printed', () {
-      const trueFalse = ExamTheoryItem(
-        id: 'a',
-        kind: QuestionKind.trueFalse,
-        prompt: 'عبارة .',
-      );
+      const trueFalse = ExamTheoryItem(id: 'a', kind: QuestionKind.trueFalse, prompt: 'عبارة .');
       final choice = ExamTheoryItem(
         id: 'b',
         kind: QuestionKind.choice,
@@ -198,10 +194,7 @@ void main() {
       expect(restored.sectionName, 'ب');
       expect(restored.typography.font, ExamPaperFont.amiri);
       expect(restored.typography.bodyFontSize, 16);
-      expect(
-        restored.typography.lineSpacingPercent,
-        ExamPaperTypography.defaultLineSpacingPercent,
-      );
+      expect(restored.typography.lineSpacingPercent, ExamPaperTypography.defaultLineSpacingPercent);
 
       final repaired = ExamProfile.fromJson(<String, dynamic>{
         'bodyFontSize': 99,
@@ -246,29 +239,23 @@ void main() {
       expect(ExamPaperTypography.isValidLineSpacing(200), isTrue);
 
       expect(const ExamPaperTypography(lineSpacingPercent: 10).isValid, isFalse);
-      final paper = buildSamplePaper(
-        typography: const ExamPaperTypography(lineSpacingPercent: 10),
-      );
+      final paper = buildSamplePaper(typography: const ExamPaperTypography(lineSpacingPercent: 10));
       expect(paper.issues, contains(ExamPaper.invalidLineSpacing));
     });
 
     test('round-trips the percentage through the saved profile', () {
-      const profile = ExamProfile(
-        typography: ExamPaperTypography(lineSpacingPercent: 80),
-      );
+      const profile = ExamProfile(typography: ExamPaperTypography(lineSpacingPercent: 80));
       final restored = ExamProfile.fromJson(profile.toJson());
       expect(restored.typography.lineSpacingPercent, 80);
       // A corrupt or missing value falls back to the official spacing.
       expect(
-        ExamProfile.fromJson(<String, dynamic>{'lineSpacingPercent': 5})
-            .typography
-            .lineSpacingPercent,
+        ExamProfile.fromJson(<String, dynamic>{
+          'lineSpacingPercent': 5,
+        }).typography.lineSpacingPercent,
         ExamPaperTypography.defaultLineSpacingPercent,
       );
       expect(
-        ExamProfile.fromJson(const <String, dynamic>{})
-            .typography
-            .lineSpacingPercent,
+        ExamProfile.fromJson(const <String, dynamic>{}).typography.lineSpacingPercent,
         ExamPaperTypography.defaultLineSpacingPercent,
       );
     });
@@ -287,10 +274,7 @@ void main() {
       expect(state.issues, contains(ExamPaper.invalidLineSpacing));
       state.resetLineSpacing();
       expect(state.typography, isNotNull);
-      expect(
-        state.typography!.lineSpacingPercent,
-        ExamPaperTypography.officialLineSpacingPercent,
-      );
+      expect(state.typography!.lineSpacingPercent, ExamPaperTypography.officialLineSpacingPercent);
     });
   });
 
@@ -310,10 +294,7 @@ void main() {
 
     test('prints the practical line with its total only', () {
       final paper = buildSamplePaper().copyWith(practicalDegree: 70);
-      expect(
-        paper.practicalHeadingLine,
-        'المادة العملية : اجب عن سؤالين فقط ( 70 درجة )',
-      );
+      expect(paper.practicalHeadingLine, 'المادة العملية : اجب عن سؤالين فقط ( 70 درجة )');
     });
 
     test('omits the per-question marks when the total cannot be split', () {
@@ -419,24 +400,33 @@ void main() {
       expect(other.theoryDegree, 30);
     });
 
-    test('ignores ids that no longer exist in the curriculum', () async {
+    test('retains missing legacy ids until the teacher explicitly discards them', () async {
       final library = await ensureLibrary();
-      final state = ExamComposerState(
-        units: library.unitsOf('g1'),
-        drawings: library.drawings,
-        gradeLabel: examGradeLabel('الصف الأول المتوسط'),
-      )..applyBankEntry(
-          ExamQuestionBankEntry(
-            id: 'old',
-            title: 'قديمة',
-            savedAt: DateTime(2026),
-            selection: const <String, List<String>>{
-              'trueFalse': <String>['gone:q1'],
-            },
-          ),
-        );
-      expect(state.selectionOf(QuestionKind.trueFalse), isEmpty);
+      final state =
+          ExamComposerState(
+            units: library.unitsOf('g1'),
+            drawings: library.drawings,
+            gradeLabel: examGradeLabel('الصف الأول المتوسط'),
+          )..applyBankEntry(
+            ExamQuestionBankEntry(
+              id: 'old',
+              title: 'قديمة',
+              savedAt: DateTime(2026),
+              selection: const <String, List<String>>{
+                'trueFalse': <String>['gone:q1'],
+              },
+            ),
+          );
+      expect(state.selectionOf(QuestionKind.trueFalse), <String>{'gone:q1'});
+      expect(state.unresolvedSourceIds, <String>{'gone:q1'});
+      expect(state.restorationWarnings, isNotEmpty);
+      expect(state.paper, isNull);
       expect(state.theoryItemCount, 0);
+      expect((state.toDraft()['selection'] as Map)['trueFalse'], <String>['gone:q1']);
+      state.discardUnresolvedItems();
+      expect(state.selectionOf(QuestionKind.trueFalse), isEmpty);
+      expect(state.unresolvedSourceIds, isEmpty);
+      state.dispose();
     });
   });
 
@@ -476,10 +466,10 @@ void main() {
       state.toggleItem(QuestionKind.trueFalse, options.last.id);
       state.toggleItem(QuestionKind.trueFalse, options.first.id);
       final selected = state.selectedItems(QuestionKind.trueFalse);
-      expect(
-        selected.map((ExamTheoryItem item) => item.id),
-        <String>[options.first.id, options.last.id],
-      );
+      expect(selected.map((ExamTheoryItem item) => item.id), <String>[
+        options.first.id,
+        options.last.id,
+      ]);
       expect(state.instructionOf(QuestionKind.trueFalse), contains('لاثنين فقط'));
       state.toggleItem(QuestionKind.trueFalse, options[1].id);
       expect(state.instructionOf(QuestionKind.trueFalse), contains('لثلاث فقط'));

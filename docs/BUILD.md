@@ -78,7 +78,7 @@ data/                 (flutter_assets + icudtl.dat)
 
 | الوظيفة | ما تفعله | الأثر |
 | --- | --- | --- |
-| `Content fidelity` | `verify_content.py` + التحقق من صحة JSON | حماية المحتوى من أي تغيير غير موثّق |
+| `Content fidelity` | `verify_content.py` + لقطة ثبات المحتوى وترتيب الأسئلة واختبارات الحارس + التحقق من صحة JSON | حماية المحتوى من أي تغيير غير موثّق |
 | `Analyze and test` | تحليل Dart و`flutter analyze --no-fatal-infos` و`flutter test` | تقرير التحليل + `resolved-pubspec.lock` |
 | `Android APK` | بناء APK بتوقيع التنقيح | `mirsam-<sha>.apk` + `SHA256SUMS.txt` |
 | `Windows EXE` | بناء ويندوز وضغط المجلد كاملاً | `mirsam-<sha>-windows-x64.zip` + بصمة SHA-256 |

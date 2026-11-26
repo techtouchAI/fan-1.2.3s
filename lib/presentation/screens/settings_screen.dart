@@ -6,6 +6,7 @@ import '../../core/widgets/app_page.dart';
 import '../../domain/models/progress.dart';
 import '../navigation/app_routes.dart';
 import '../state/app_state.dart';
+import '../widgets/teacher_profile_panel.dart';
 import 'landing_shell.dart';
 import '../widgets/text_scale_controls.dart';
 
@@ -52,6 +53,8 @@ class SettingsScreen extends StatelessWidget {
             ],
           ),
         ),
+        const TeacherProfilePanel(),
+        const SizedBox(height: AppSpacing.md),
         _SettingsCard(
           title: 'المظهر',
           icon: Icons.palette_outlined,
@@ -159,11 +162,14 @@ class SettingsScreen extends StatelessWidget {
             children: <Widget>[
               _InfoRow(
                 label: 'الوحدات المقروءة',
-                value: '${toArabicDigits('${state.readUnitsCount}')} من ${toArabicDigits('${state.totalUnits}')}',
+                value:
+                    '${toArabicDigits('${state.readUnitsCount}')} من ${toArabicDigits('${state.totalUnits}')}',
               ),
               _InfoRow(
                 label: 'العناصر المحفوظة',
-                value: toArabicDigits('${state.favoriteUnits.length + state.favoriteLessons.length}'),
+                value: toArabicDigits(
+                  '${state.favoriteUnits.length + state.favoriteLessons.length}',
+                ),
               ),
               _InfoRow(
                 label: 'نسبة الاستكشاف',
@@ -221,16 +227,16 @@ class SettingsScreen extends StatelessWidget {
             children: <Widget>[
               const _InfoRow(label: 'الاسم', value: 'مِرسم'),
               const _InfoRow(label: 'الإصدار', value: '1.0.0 (1)'),
-              _InfoRow(
-                label: 'الوحدات',
-                value: toArabicDigits('${state.visibleUnits.length}'),
-              ),
+              _InfoRow(label: 'الوحدات', value: toArabicDigits('${state.visibleUnits.length}')),
               _InfoRow(
                 label: 'رسوم الموضوعات',
                 value: toArabicDigits('${state.visibleDrawings.length}'),
               ),
               _InfoRow(label: 'اللوحات', value: toArabicDigits('${state.visiblePlates.length}')),
-              _InfoRow(label: 'الدروس التطبيقية', value: toArabicDigits('${state.library.lessons.length}')),
+              _InfoRow(
+                label: 'الدروس التطبيقية',
+                value: toArabicDigits('${state.library.lessons.length}'),
+              ),
               _InfoRow(label: 'المصالح', value: 'Android • Windows'),
             ],
           ),
@@ -263,7 +269,11 @@ class SettingsScreen extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
         children: <Widget>[
-          const AppPageHeader(title: 'الإعدادات', subtitle: 'المظهر، الخط، التقدم، ومحتوى التطبيق'),
+          const AppPageHeader(
+            showSettings: false,
+            title: 'الإعدادات',
+            subtitle: 'المظهر، الخط، التقدم، ومحتوى التطبيق',
+          ),
           AppPage(maxWidth: AppLayout.readingMaxWidth, child: body),
         ],
       ),
@@ -277,10 +287,7 @@ class SettingsScreen extends StatelessWidget {
         title: const Text('إعادة تعيين البيانات'),
         content: const Text('سيتم حذف سجل القراءة والمفضلة ونتائج الاختبارات من هذا الجهاز.'),
         actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('إلغاء')),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('إعادة تعيين'),
@@ -291,9 +298,9 @@ class SettingsScreen extends StatelessWidget {
     if (confirmed == true) {
       await state.resetProgress();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تمت إعادة تعيين البيانات المحلية')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تمت إعادة تعيين البيانات المحلية')));
       }
     }
   }
@@ -340,7 +347,7 @@ class _SettingsCard extends StatelessWidget {
             children: <Widget>[
               Icon(icon, size: 20, color: scheme.primary),
               const SizedBox(width: AppSpacing.sm),
-              Text(title, style: theme.textTheme.titleLarge),
+              Expanded(child: Text(title, style: theme.textTheme.titleLarge)),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -363,9 +370,13 @@ class _InfoRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
-          Text(value, style: theme.textTheme.titleMedium),
+          const SizedBox(width: AppSpacing.sm),
+          Flexible(
+            child: Text(value, textAlign: TextAlign.end, style: theme.textTheme.titleMedium),
+          ),
         ],
       ),
     );

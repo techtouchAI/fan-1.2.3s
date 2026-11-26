@@ -13,8 +13,8 @@ class PrefsExamProfileRepository implements ExamProfileRepository {
   @override
   Future<ExamProfile> load() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(storageKey);
-    if (raw == null || raw.isEmpty) {
+    final raw = prefs.get(storageKey);
+    if (raw is! String || raw.isEmpty) {
       return const ExamProfile();
     }
     try {
@@ -31,6 +31,8 @@ class PrefsExamProfileRepository implements ExamProfileRepository {
   @override
   Future<void> save(ExamProfile profile) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(storageKey, jsonEncode(profile.toJson()));
+    if (!await prefs.setString(storageKey, jsonEncode(profile.toJson()))) {
+      throw StateError('Could not persist exam profile');
+    }
   }
 }

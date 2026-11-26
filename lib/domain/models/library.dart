@@ -213,6 +213,16 @@ class Question {
     return false;
   }
 
+  /// Only source-backed text, unlike the reader's legacy fallback label.
+  String get documentedAnswerText => switch (kind) {
+    QuestionKind.trueFalse => boolAnswer == null ? '' : (boolAnswer! ? 'صح' : 'خطأ'),
+    QuestionKind.choice =>
+      answerIndex != null && answerIndex! >= 0 && answerIndex! < options.length
+          ? options[answerIndex!]
+          : '',
+    QuestionKind.open => textAnswer ?? '',
+  };
+
   String get answerText {
     switch (kind) {
       case QuestionKind.trueFalse:

@@ -4,7 +4,10 @@
 enum QuestionPrintFont {
   plex('IBM بلكس', 'IBMPlexSansArabic'),
   kufi('كوفي نوتو', 'NotoKufiArabic'),
-  amiri('أميري', 'Amiri');
+  amiri('أميري', 'Amiri'),
+  cairo('القاهرة', 'Cairo'),
+  tajawal('تجوال', 'Tajawal'),
+  almarai('المراعي', 'Almarai');
 
   const QuestionPrintFont(this.label, this.family);
 
@@ -20,6 +23,7 @@ enum QuestionPrintFont {
 class QuestionPrintSettings {
   const QuestionPrintSettings({
     this.font = QuestionPrintFont.plex,
+    this.includeAnswers = true,
     this.bodyFontSize = defaultBodyFontSize,
     this.headingFontSize = defaultHeadingFontSize,
   });
@@ -29,6 +33,7 @@ class QuestionPrintSettings {
   static const int minFontSize = 8;
   static const int maxFontSize = 32;
 
+  final bool includeAnswers;
   final QuestionPrintFont font;
   final int bodyFontSize;
   final int headingFontSize;

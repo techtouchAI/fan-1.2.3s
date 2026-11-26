@@ -48,9 +48,9 @@ class UnitSwitcherBar extends StatelessWidget {
             button: true,
             child: Material(
               color: selected ? accent.withValues(alpha: 0.16) : scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(AppRadii.xl),
               child: InkWell(
-                borderRadius: BorderRadius.circular(30),
+                borderRadius: BorderRadius.circular(AppRadii.xl),
                 onTap: () {
                   if (!selected) {
                     onSelected(unit);
@@ -60,7 +60,7 @@ class UnitSwitcherBar extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
+                    borderRadius: BorderRadius.circular(AppRadii.xl),
                     border: Border.all(color: selected ? accent : scheme.outlineVariant),
                   ),
                   child: Text(

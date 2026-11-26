@@ -23,18 +23,18 @@ class EmptyState extends StatelessWidget {
     final scheme = theme.colorScheme;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xxl),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Container(
-              width: 84,
-              height: 84,
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
+                color: scheme.primaryContainer.withValues(alpha: 0.55),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 38, color: scheme.primary),
+              child: Icon(icon, size: 30, color: scheme.primary),
             ),
             const SizedBox(height: AppSpacing.lg),
             Text(title, style: theme.textTheme.titleLarge, textAlign: TextAlign.center),

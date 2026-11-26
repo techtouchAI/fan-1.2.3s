@@ -14,6 +14,7 @@ import '../navigation/app_routes.dart';
 import '../state/app_state.dart';
 import '../widgets/illustration_figure.dart';
 import '../widgets/unit_switcher_bar.dart';
+import '../widgets/unit_question_card.dart';
 import '../widgets/units/unit_sections.dart';
 import '../widgets/text_scale_controls.dart';
 
@@ -34,6 +35,8 @@ class _UnitScreenState extends State<UnitScreen> {
   ScrollController? _controller;
   AppState? _state;
   bool _initialised = false;
+  String _category = 'all';
+  bool _shows(String category) => _category == 'all' || _category == category;
 
   @override
   void didChangeDependencies() {
@@ -156,8 +159,28 @@ class _UnitScreenState extends State<UnitScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
                   _UnitHeader(unit: unit, accent: accent),
+                  const SizedBox(height: AppSpacing.md),
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.xs,
+                    children: <Widget>[
+                      for (final category in <String, String>{
+                        'all': 'الكل',
+                        'topics': 'الموضوعات',
+                        'images': 'الرسوم واللوحات',
+                        'terms': 'المصطلحات',
+                        if (unit.questions.isNotEmpty) 'questions': 'الأسئلة',
+                      }.entries)
+                        ChoiceChip(
+                          key: ValueKey<String>('unit-filter-${category.key}'),
+                          label: Text(category.value),
+                          selected: _category == category.key,
+                          onSelected: (_) => setState(() => _category = category.key),
+                        ),
+                    ],
+                  ),
                   const SizedBox(height: AppSpacing.xl),
-                  if (unit.figures.isNotEmpty) ...<Widget>[
+                  if (_shows('images') && unit.figures.isNotEmpty) ...<Widget>[
                     SectionHeader(
                       title: 'رسوم توضيحية',
                       subtitle: 'تكوينات بصرية مرتبطة بموضوعات الوحدة',
@@ -171,17 +194,20 @@ class _UnitScreenState extends State<UnitScreen> {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                   ],
-                  SectionHeader(
-                    title: 'موضوعات الوحدة',
-                    subtitle: '${toArabicDigits('${unit.topics.length}')} موضوعاً — ${unit.template.label}',
-                    accent: accent,
-                  ),
-                  UnitSections(
-                    unit: unit,
-                    accent: accent,
-                    drawings: state.drawingsOfUnit(unit.id),
-                  ),
-                  if (unit.plates.isNotEmpty) ...<Widget>[
+                  if (_shows('topics')) ...<Widget>[
+                    SectionHeader(
+                      title: 'موضوعات الوحدة',
+                      subtitle:
+                          '${toArabicDigits('${unit.topics.length}')} موضوعاً — ${unit.template.label}',
+                      accent: accent,
+                    ),
+                    UnitSections(
+                      unit: unit,
+                      accent: accent,
+                      drawings: state.drawingsOfUnit(unit.id),
+                    ),
+                  ],
+                  if (_shows('images') && unit.plates.isNotEmpty) ...<Widget>[
                     const SizedBox(height: AppSpacing.xl),
                     SectionHeader(
                       title: unit.plates.length == 1 ? 'لوحة الوحدة' : 'لوحات الوحدة',
@@ -197,7 +223,7 @@ class _UnitScreenState extends State<UnitScreen> {
                       ),
                     ),
                   ],
-                  if (terms.isNotEmpty) ...<Widget>[
+                  if (_shows('terms') && terms.isNotEmpty) ...<Widget>[
                     const SizedBox(height: AppSpacing.xl),
                     SectionHeader(
                       title: 'مصطلحات الوحدة',
@@ -207,15 +233,18 @@ class _UnitScreenState extends State<UnitScreen> {
                     EqualColumnsGrid(
                       columns: _termsPerRow,
                       children: terms
-                          .map((GlossaryTerm term) => _TermChip(
-                                term: term,
-                                onPressed: () => _showTerm(term),
-                              ))
+                          .map(
+                            (GlossaryTerm term) =>
+                                _TermChip(term: term, onPressed: () => _showTerm(term)),
+                          )
                           .toList(growable: false),
                     ),
                   ],
-                  if (unit.questions.isNotEmpty) ...<Widget>[
+                  if (_shows('questions') && unit.questions.isNotEmpty) ...<Widget>[
                     const SizedBox(height: AppSpacing.xl),
+                    SectionHeader(title: 'أسئلة الوحدة وأجوبتها النموذجية', accent: accent),
+                    for (var i = 0; i < unit.questions.length; i++)
+                      UnitQuestionCard(question: unit.questions[i], number: i + 1),
                     _QuizCallToAction(unit: unit, state: state, accent: accent),
                   ],
                   if (position >= 0) ...<Widget>[
@@ -254,9 +283,9 @@ class _UnitScreenState extends State<UnitScreen> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم نسخ نص الوحدة — يمكنك مشاركته الآن')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم نسخ نص الوحدة — يمكنك مشاركته الآن')));
   }
 
   void _showTerm(GlossaryTerm term) {
@@ -310,10 +339,7 @@ class _UnitHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: AlignmentDirectional.topStart,
           end: AlignmentDirectional.bottomEnd,
-          colors: <Color>[
-            accent.withValues(alpha: 0.16),
-            accent.withValues(alpha: 0.04),
-          ],
+          colors: <Color>[accent.withValues(alpha: 0.16), accent.withValues(alpha: 0.04)],
         ),
         border: Border.all(color: accent.withValues(alpha: 0.32)),
       ),
@@ -323,14 +349,22 @@ class _UnitHeader extends StatelessWidget {
           // Two fixed lines: the grade, then the unit's meta information.
           SingleLineRow(
             children: <Widget>[
-              MetaPill(label: unit.isIntroduction ? 'مدخل' : unit.grade, color: accent, filled: true),
+              MetaPill(
+                label: unit.isIntroduction ? 'مدخل' : unit.grade,
+                color: accent,
+                filled: true,
+              ),
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
           SingleLineRow(
             children: <Widget>[
               MetaPill(label: unit.numberLabel, color: scheme.secondary),
-              MetaPill(label: unit.template.label, icon: Icons.dashboard_customize_outlined, color: scheme.tertiary),
+              MetaPill(
+                label: unit.template.label,
+                icon: Icons.dashboard_customize_outlined,
+                color: scheme.tertiary,
+              ),
               MetaPill(
                 label: readingTimeLabel(unit.searchableText),
                 icon: Icons.schedule,
@@ -346,7 +380,10 @@ class _UnitHeader extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             unit.intro.isNotEmpty ? unit.intro : unit.summary,
-            style: theme.textTheme.bodyLarge?.copyWith(fontSize: 15.5, color: scheme.onSurfaceVariant),
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontSize: 15.5,
+              color: scheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -421,8 +458,7 @@ class _PlateCard extends StatelessWidget {
         onTap: () {
           final plates = AppScope.read(context).library.plates;
           final match = plates.where(
-            (Plate item) =>
-                (plate.id != null && item.id == plate.id) || item.asset == plate.asset,
+            (Plate item) => (plate.id != null && item.id == plate.id) || item.asset == plate.asset,
           );
           if (match.isNotEmpty) {
             AppRoutes.openPlate(context, match.first);
@@ -443,11 +479,7 @@ class _PlateCard extends StatelessWidget {
                   child: Image.asset(
                     plate.asset,
                     fit: BoxFit.contain,
-                    errorBuilder: (
-                      BuildContext context,
-                      Object error,
-                      StackTrace? stack,
-                    ) =>
+                    errorBuilder: (BuildContext context, Object error, StackTrace? stack) =>
                         const Center(child: Icon(Icons.broken_image_outlined)),
                   ),
                 ),
@@ -456,9 +488,7 @@ class _PlateCard extends StatelessWidget {
                 padding: const EdgeInsets.all(AppSpacing.md),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(plate.caption, style: theme.textTheme.titleMedium),
-                  ],
+                  children: <Widget>[Text(plate.caption, style: theme.textTheme.titleMedium)],
                 ),
               ),
             ],
@@ -553,7 +583,10 @@ class _PrevNextBar extends StatelessWidget {
         else
           const Spacer(),
         if (previous == null && next == null)
-          Text('آخر عنصر', style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
+          Text(
+            'آخر عنصر',
+            style: theme.textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+          ),
       ],
     );
   }
@@ -603,8 +636,7 @@ class _NavCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  crossAxisAlignment: alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                   children: <Widget>[
                     Text(label, style: theme.textTheme.labelMedium),
                     Text(

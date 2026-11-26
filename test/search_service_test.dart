@@ -57,14 +57,15 @@ void main() {
   });
 
   test('finds the topic drawings of the booklet', () {
-    // Every unit, lesson, term, plate and topic drawing is indexed once.
+    // Every unit, topic, question, lesson, term, plate and drawing is indexed once.
     expect(
       search.indexSize,
       library.units.length +
           library.lessons.length +
           library.glossary.length +
           library.plates.length +
-          library.drawings.length,
+          library.drawings.length +
+          library.units.fold<int>(0, (sum, u) => sum + u.topics.length + u.questions.length),
     );
     final hits = search.search('التوزيع النجمي');
     expect(hits.any((hit) => hit.type == SearchHitType.drawing), isTrue);
@@ -75,13 +76,16 @@ void main() {
   });
 
   test('a grade filter keeps the drawings of the other grades out', () {
-    final filtered = SearchService(library, unitFilter: <String>{
-      for (final unit in library.unitsOf('g3')) unit.id,
-    });
+    final filtered = SearchService(
+      library,
+      unitFilter: <String>{for (final unit in library.unitsOf('g3')) unit.id},
+    );
     final hits = filtered.search('الضوء والظل');
     expect(hits.any((hit) => hit.type == SearchHitType.drawing), isTrue);
     expect(
-      hits.where((hit) => hit.type == SearchHitType.drawing).every(
+      hits
+          .where((hit) => hit.type == SearchHitType.drawing)
+          .every(
             (hit) => library.drawings
                 .firstWhere((TopicDrawing drawing) => drawing.id == hit.id)
                 .unitId

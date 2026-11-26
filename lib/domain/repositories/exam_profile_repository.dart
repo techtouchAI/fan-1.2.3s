@@ -27,20 +27,17 @@ class ExamProfile {
 
   factory ExamProfile.fromJson(Map<String, dynamic> json) {
     return ExamProfile(
-      schoolName: json['schoolName'] as String? ?? '',
-      gradeLabel: json['gradeLabel'] as String? ?? '',
-      sectionName: json['sectionName'] as String? ?? '',
-      teacherName: json['teacherName'] as String? ?? '',
+      schoolName: json['schoolName'] is String ? json['schoolName'] as String : '',
+      gradeLabel: json['gradeLabel'] is String ? json['gradeLabel'] as String : '',
+      sectionName: json['sectionName'] is String ? json['sectionName'] as String : '',
+      teacherName: json['teacherName'] is String ? json['teacherName'] as String : '',
       typography: ExamPaperTypography(
-        font: _fontFromName(json['font'] as String?),
+        font: _fontFromName(json['font'] is String ? json['font'] as String : null),
         headerFontSize: _sizeFromJson(
           json['headerFontSize'],
           ExamPaperTypography.defaultHeaderFontSize,
         ),
-        bodyFontSize: _sizeFromJson(
-          json['bodyFontSize'],
-          ExamPaperTypography.defaultBodyFontSize,
-        ),
+        bodyFontSize: _sizeFromJson(json['bodyFontSize'], ExamPaperTypography.defaultBodyFontSize),
         headingFontSize: _sizeFromJson(
           json['headingFontSize'],
           ExamPaperTypography.defaultHeadingFontSize,

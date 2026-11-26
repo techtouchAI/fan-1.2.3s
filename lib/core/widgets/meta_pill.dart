@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/dimens.dart';
+
 /// Small rounded label used for meta information (grade, template, count…).
 class MetaPill extends StatelessWidget {
   const MetaPill({
@@ -23,7 +25,7 @@ class MetaPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: filled ? tone.withValues(alpha: 0.14) : Colors.transparent,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(AppRadii.xl),
         border: Border.all(color: tone.withValues(alpha: 0.35)),
       ),
       child: Row(
@@ -33,9 +35,11 @@ class MetaPill extends StatelessWidget {
             Icon(icon, size: 14, color: tone),
             const SizedBox(width: 5),
           ],
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: tone),
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(color: tone),
+            ),
           ),
         ],
       ),
