@@ -137,6 +137,44 @@ class SavedExamLibrary extends ChangeNotifier {
     return isDurable && !isReadOnly;
   }
 
+  /// Export all grades, including records retained for recovery.
+  Future<String> exportBackup() async {
+    await flush();
+    if (_lastWriteError != null) throw StateError('تعذّر حفظ آخر التعديلات');
+    return _store.exportArchive();
+  }
+
+  /// Merge only fully readable archives. Conflicting identities are copied,
+  /// never overwritten; existing identical records are skipped.
+  Future<int> importBackup(String raw) async {
+    _ensureWritable();
+    final decoded = SavedExamArchive.decode(raw);
+    if (raw.trim().isEmpty || decoded.readOnly || decoded.recoveryRecords.isNotEmpty) {
+      throw const FormatException('النسخة غير صالحة أو تحتوي سجلات تحتاج إلى استعادة يدوية');
+    }
+    final known = <String>{for (final paper in _papers) jsonEncode(paper.toJson())};
+    var added = 0;
+    for (final paper in decoded.papers) {
+      final encoded = jsonEncode(paper.toJson());
+      if (known.contains(encoded)) continue;
+      final existing = byId(paper.id);
+      final copy = existing == null ? paper : SavedExamPaper(
+        id: _newId(_clock()), draft: paper.draft, gradeId: paper.gradeId,
+        createdAt: paper.createdAt, updatedAt: paper.updatedAt,
+        customTitle: paper.customTitle, revision: paper.revision,
+      );
+      _papers.add(copy);
+      known.add(encoded);
+      added++;
+    }
+    if (added > 0) {
+      _papers.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      _changed();
+      if (!await flushChecked()) throw StateError('تعذّر حفظ الأوراق المستوردة');
+    }
+    return added;
+  }
+
   String _newId(DateTime now) {
     String candidate() =>
         'exam-${now.microsecondsSinceEpoch.toRadixString(36)}'

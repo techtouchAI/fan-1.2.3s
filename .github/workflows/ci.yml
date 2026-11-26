@@ -39,6 +39,8 @@ jobs:
           python3 tools/verify_design_content.py
           python3 tools/test_verify_design_content.py
           python3 tools/test_ci_report.py
+          python3 tools/verify_curated_bank.py
+          python3 tools/test_verify_curated_bank.py
       - name: Validate the JSON payloads
         run: |
           python3 - <<'PY'
@@ -168,6 +170,7 @@ jobs:
             assets/content/glossary.json \
             assets/content/plates.json \
             assets/content/drawings.json \
+            assets/question_bank/curated.json \
             assets/fonts/Almarai-Regular.ttf \
             assets/fonts/Cairo-Regular.ttf \
             assets/fonts/Tajawal-Regular.ttf \
@@ -370,6 +373,7 @@ jobs:
             'data\flutter_assets\assets\illustrations\studio.svg',
             'data\flutter_assets\assets\images\plates\plate-01.jpg',
             'data\flutter_assets\assets\content\drawings.json',
+            'data\flutter_assets\assets\question_bank\curated.json',
             'data\flutter_assets\assets\images\drawings\drawing-01.png',
             'data\flutter_assets\assets\images\drawings\drawing-14.png'
           )

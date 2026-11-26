@@ -19,8 +19,8 @@ extension PrintableQuestionKind on QuestionKind {
 
 /// Units with questions, in curriculum order. Keep different grade sections in
 /// their original order, and sort units within each section by unit number.
-List<LearningUnit> printableUnits(Iterable<LearningUnit> units) {
-  final result = units.where((unit) => unit.questions.isNotEmpty).toList();
+List<LearningUnit> printableUnits(Iterable<LearningUnit> units, {bool includeTopics = false}) {
+  final result = units.where((unit) => unit.questions.isNotEmpty || (includeTopics && unit.topics.isNotEmpty)).toList();
   final sectionOrder = <String, int>{};
   final originalOrder = <String, int>{};
   for (var i = 0; i < result.length; i++) {
@@ -68,7 +68,7 @@ class QuestionPrintPlan {
     Set<QuestionKind>? allowedKinds,
   }) {
     final units = printableUnits(
-      availableUnits,
+      availableUnits, includeTopics: settings.mode == StudentPrintMode.summary,
     ).where((LearningUnit unit) => selectedIds.contains(unit.id)).toList(growable: false);
     final sections = <QuestionPrintSection>[];
     for (final kind in printableQuestionKinds) {
@@ -98,7 +98,9 @@ class QuestionPrintPlan {
   final List<QuestionPrintSection> sections;
   final QuestionPrintSettings settings;
 
-  bool get isEmpty => sections.isEmpty;
+  bool get isEmpty => settings.mode == StudentPrintMode.summary
+      ? units.every((unit) => unit.topics.isEmpty)
+      : sections.isEmpty;
 
   int get questionCount => sections.fold<int>(
     0,

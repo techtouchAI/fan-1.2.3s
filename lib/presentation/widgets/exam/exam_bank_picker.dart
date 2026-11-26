@@ -3,6 +3,7 @@ import '../../../core/theme/dimens.dart';
 import '../../../core/utils/arabic_text.dart';
 import '../../../domain/models/exam_paper.dart';
 import '../../../domain/models/library.dart';
+import '../../../domain/services/exam_paper_formatter.dart';
 import '../../state/exam_composer_state.dart';
 
 /// Searchable, scoped, multi-select bank. Local selection is committed only on
@@ -39,6 +40,16 @@ class _BankPickerState extends State<_BankPicker> {
   bool _replace = false;
   bool _onlySelected = false;
   final Set<String> _picked = <String>{};
+  String _subtitle(ExamQuestionOption option) {
+    final question = option.question;
+    return <String>[
+      '${option.unitTitle}${option.isSupplemental ? ' • مُعدّ من محتوى الموضوع' : ''}',
+      if (question.options.isNotEmpty) question.options.join(' / '),
+      if (option.isCurated) 'الإجابة: ${question.documentedAnswerText}',
+      if (option.isCurated && question.answerSupport != null) 'الشاهد: ${question.answerSupport}',
+    ].join('\n');
+  }
+
   @override
   Widget build(BuildContext context) {
     final all = widget.state.optionsOf(widget.kind);
@@ -134,7 +145,7 @@ class _BankPickerState extends State<_BankPicker> {
                           controlAffinity: ListTileControlAffinity.leading,
                           title: Text(option.question.prompt),
                           subtitle: Text(
-                            '${option.unitTitle}${option.question.options.isEmpty ? '' : '\n${option.question.options.join(' / ')}'}',
+                            _subtitle(option),
                           ),
                           secondary: widget.state.isSelected(widget.kind, option.id)
                               ? const Icon(Icons.check_circle_outline)

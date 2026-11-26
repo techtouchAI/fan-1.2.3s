@@ -167,6 +167,18 @@ void main() {
     }
   });
 
+  test('summary renders selected source topics with bold headings', () async {
+    final unit = library.unitsOf('g1').first;
+    final plan = QuestionPrintPlan.fromSelection(<LearningUnit>[unit], <String>{unit.id},
+      settings: const QuestionPrintSettings(mode: StudentPrintMode.summary, compactSpacing: true));
+    final document = await const QuestionPdfBuilder(compress: false).build(
+      plan, gradeTitle: unit.grade, assetBundle: _FontAssetBundle(fontData, synchronous: true));
+    expect(await document.save(), isNotEmpty);
+    final fonts = document.document.fonts.whereType<PdfTtfFont>().map((font) => font.fontName);
+    expect(fonts, contains('IBMPlexSansArabic-Bold'));
+    expect(fonts, contains('IBMPlexSansArabic-Regular'));
+  });
+
   for (final synchronous in <bool>[true, false]) {
     test('loads fonts delivered ${synchronous ? 'synchronously' : 'asynchronously'}', () async {
       final unit = library.unitsOf('g1').first;

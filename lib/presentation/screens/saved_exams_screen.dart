@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/dimens.dart';
@@ -25,7 +29,13 @@ class SavedExamsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final library = AppScope.of(context).savedExams;
     return Scaffold(
-      appBar: AppBar(title: const Text('أسئلتي المحفوظة')),
+      appBar: AppBar(
+        title: const Text('أسئلتي المحفوظة'),
+        actions: <Widget>[
+          IconButton(key: const ValueKey<String>('saved-exams-backup'), tooltip: 'تصدير نسخة احتياطية', icon: const Icon(Icons.backup_outlined), onPressed: () => _backup(context, library)),
+          IconButton(key: const ValueKey<String>('saved-exams-restore'), tooltip: 'استعادة نسخة احتياطية', icon: const Icon(Icons.restore), onPressed: library.isReadOnly ? null : () => _restore(context, library)),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         key: const ValueKey<String>('saved-exams-new'),
         onPressed: () => _openComposer(context),
@@ -68,6 +78,32 @@ class SavedExamsScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  Future<void> _backup(BuildContext context, SavedExamLibrary library) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final raw = await library.exportBackup();
+      final result = await ExamDocumentExporter.exportBackup(Uint8List.fromList(utf8.encode(raw)));
+      messenger.showSnackBar(SnackBar(content: Text(result.message)));
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('تعذّر إنشاء النسخة الاحتياطية: $error')));
+    }
+  }
+
+  Future<void> _restore(BuildContext context, SavedExamLibrary library) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final file = await openFile(acceptedTypeGroups: <XTypeGroup>[
+        const XTypeGroup(label: 'JSON Backup', extensions: <String>['json']),
+      ]);
+      if (file == null) return;
+      if (await file.length() > 20 * 1024 * 1024) throw const FormatException('الملف كبير جداً');
+      final count = await library.importBackup(utf8.decode(await file.readAsBytes()));
+      messenger.showSnackBar(SnackBar(content: Text('تمت استعادة $count ورقة؛ لم تُحذف الأوراق الحالية.')));
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('تعذّرت استعادة النسخة: $error')));
+    }
   }
 
   void _openComposer(BuildContext context, [String? savedId]) {
