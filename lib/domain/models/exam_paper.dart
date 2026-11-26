@@ -772,6 +772,8 @@ class ExamPaper {
       if (q.hasContent) q,
   ];
 
+  int get freeQuestionCount => activeFreeQuestions.length;
+
   int get theoryQuestionCount =>
       theory.where((ExamTheoryQuestion item) => !item.isEmpty).length +
       activeFreeQuestions.length;

@@ -65,7 +65,6 @@ void main() {
               id: 'custom:trueFalse:1',
               kind: QuestionKind.trueFalse,
               prompt: 'تتوازن الطبيعة الصامتة بتوزيع الكتل والأحجام في فضاء اللوحة.',
-              isCustom: true,
             ),
           ],
         ),
@@ -116,7 +115,7 @@ void main() {
     expect(plain, contains('مع التمنيات بالنجاح الباهر'));
     expect(plain.endsWith(examPaperBodyAsPlainText(paper)), isTrue);
 
-    final bytes = const ExamDocxBuilder().build(paper);
+    final bytes = ExamDocxBuilder.build(paper);
     final xml = documentXmlOf(bytes);
     expectWellFormedXml(xml);
     expect(xml, contains('w:top="360" w:right="510" w:bottom="510" w:left="510"'));

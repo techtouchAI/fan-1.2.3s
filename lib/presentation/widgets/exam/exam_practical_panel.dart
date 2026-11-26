@@ -161,7 +161,7 @@ class ExamPracticalPanel extends StatelessWidget {
                 controllers.practicalDegrees[index].text,
               );
               if (value != null) {
-                state.setPracticalItemDegree(index, value);
+                state.setPracticalSlotDegree(index, value);
               }
             },
           ),
@@ -172,13 +172,13 @@ class ExamPracticalPanel extends StatelessWidget {
 
   void _pickDrawing(int index, String? id) {
     if (id == null) {
-      state.selectPracticalDrawing(index, null);
+      state.selectDrawing(index, null);
       controllers.practicalPrompts[index].text = '';
       return;
     }
     for (final TopicDrawing drawing in _drawings) {
       if (drawing.id == id) {
-        state.selectPracticalDrawing(index, drawing);
+        state.selectDrawing(index, drawing);
         controllers.practicalPrompts[index].text = state.practical[index].prompt;
         return;
       }

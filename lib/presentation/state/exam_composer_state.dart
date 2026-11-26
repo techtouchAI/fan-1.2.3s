@@ -418,6 +418,9 @@ class ExamComposerState extends ChangeNotifier {
   List<ExamFreeQuestion> get freeQuestions =>
       List<ExamFreeQuestion>.unmodifiable(_freeQuestions);
 
+  int get freeQuestionCount =>
+      _freeQuestions.where((ExamFreeQuestion q) => q.hasContent).length;
+
   String _nextFreeId() {
     while (true) {
       _freeCounter++;
